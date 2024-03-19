@@ -16,23 +16,35 @@
  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
+#include "status_led.h"
+
 #include <SuplaDevice.h>
 #include <supla/io.h>
+#include <supla/protocol/protocol_layer.h>
 #include <supla/storage/storage.h>
 #include <supla/time.h>
-#include <supla/protocol/protocol_layer.h>
+#include <supla/log_wrapper.h>
+#include <supla/protocol/supla_srpc.h>
+#include <supla/device/remote_device_config.h>
+#include <supla/mutex.h>
+#include <supla/auto_lock.h>
 
-#include "status_led.h"
+Supla::Device::StatusLed::StatusLed(Supla::Io *io, uint8_t outPin, bool invert)
+    : StatusLed(outPin, invert) {
+  this->io = io;
+}
 
 Supla::Device::StatusLed::StatusLed(uint8_t outPin, bool invert)
     : outPin(outPin), invert(invert) {
+  mutex = Supla::Mutex::Create();
 }
 
-void Supla::Device::StatusLed::onLoadConfig() {
+void Supla::Device::StatusLed::onLoadConfig(SuplaDeviceClass *sdc) {
+  (void)(sdc);
   auto cfg = Supla::Storage::ConfigInstance();
   if (cfg) {
     int8_t value = 0;
-    if (cfg->getInt8("statusled", &value)) {
+    if (cfg->getInt8(StatusLedCfgTag, &value)) {
       switch (value) {
         default:
         case 0: {
@@ -49,18 +61,54 @@ void Supla::Device::StatusLed::onLoadConfig() {
         }
       }
     }
+
+    // register DeviceConfig field bit:
+    Supla::Device::RemoteDeviceConfig::RegisterConfigField(
+        SUPLA_DEVICE_CONFIG_FIELD_STATUS_LED);
+  }
+}
+
+void Supla::Device::StatusLed::storeModeToConfig() {
+  Supla::AutoLock autoLock(mutex);
+  auto cfg = Supla::Storage::ConfigInstance();
+  if (cfg) {
+    int8_t currentCfgValue = 0;
+    cfg->getInt8(StatusLedCfgTag, &currentCfgValue);
+    if (currentCfgValue != ledMode) {
+      switch (ledMode) {
+        default:
+        case 0: {
+          cfg->setInt8(Supla::Device::StatusLedCfgTag, 0);
+          break;
+        }
+        case 1: {
+          cfg->setInt8(Supla::Device::StatusLedCfgTag,
+                       static_cast<int8_t>(ledMode));
+          break;
+        }
+        case 2: {
+          cfg->setInt8(Supla::Device::StatusLedCfgTag,
+                       static_cast<int8_t>(ledMode));
+          break;
+        }
+      }
+      cfg->setDeviceConfigChangeFlag();
+      cfg->saveWithDelay(2000);
+    }
   }
 }
 
 void Supla::Device::StatusLed::onInit() {
+  Supla::AutoLock autoLock(mutex);
   updatePin();
   if (state == NOT_INITIALIZED) {
     turnOn();
   }
-  Supla::Io::pinMode(outPin, OUTPUT);
+  Supla::Io::pinMode(outPin, OUTPUT, io);
 }
 
 void Supla::Device::StatusLed::iterateAlways() {
+  Supla::AutoLock autoLock(mutex);
   if (ledMode == LED_ALWAYS_OFF) {
     offDuration = 1000;
     onDuration = 0;
@@ -85,7 +133,9 @@ void Supla::Device::StatusLed::iterateAlways() {
       break;
 
     case STATUS_SOFTWARE_RESET:
-      currentSequence = REGISTERED_AND_READY;
+      offDuration = 1000;
+      onDuration = 0;
+      currentSequence = CUSTOM_SEQUENCE;
       break;
 
     case STATUS_OFFLINE_MODE:
@@ -153,7 +203,7 @@ void Supla::Device::StatusLed::iterateAlways() {
         currentSequence = PACZKOW_WE_HAVE_A_PROBLEM;
         break;
       }
-      if (proto->isConnecting()) {
+      if (proto->isConnecting() && !SuplaDevice.isSleepingDeviceEnabled()) {
         currentSequence = SERVER_CONNECTING;
       }
     }
@@ -207,10 +257,12 @@ void Supla::Device::StatusLed::iterateAlways() {
 }
 
 void Supla::Device::StatusLed::onTimer() {
+  Supla::AutoLock autoLock(mutex);
   updatePin();
 }
 
 void Supla::Device::StatusLed::setInvertedLogic(bool invertedLogic) {
+  Supla::AutoLock autoLock(mutex);
   invert = invertedLogic;
   updatePin();
 }
@@ -218,13 +270,13 @@ void Supla::Device::StatusLed::setInvertedLogic(bool invertedLogic) {
 void Supla::Device::StatusLed::turnOn() {
   lastUpdate = millis();
   state = ON;
-  Supla::Io::digitalWrite(outPin, invert ? 0 : 1);
+  Supla::Io::digitalWrite(outPin, invert ? 0 : 1, io);
 }
 
 void Supla::Device::StatusLed::turnOff() {
   lastUpdate = millis();
   state = OFF;
-  Supla::Io::digitalWrite(outPin, invert ? 1 : 0);
+  Supla::Io::digitalWrite(outPin, invert ? 1 : 0, io);
 }
 
 void Supla::Device::StatusLed::updatePin() {
@@ -247,17 +299,32 @@ void Supla::Device::StatusLed::updatePin() {
 
 void Supla::Device::StatusLed::setCustomSequence(int onDurationMs,
     int offDurationMs) {
+  Supla::AutoLock autoLock(mutex);
   currentSequence = CUSTOM_SEQUENCE;
   onDuration = onDurationMs;
   offDuration = offDurationMs;
 }
 
 void Supla::Device::StatusLed::setAutoSequence() {
+  Supla::AutoLock autoLock(mutex);
   // resetting to defaults will trigger automatic sequence update on
   // iterateAlways call
   currentSequence = NETWORK_CONNECTING;
 }
 
 void Supla::Device::StatusLed::setMode(LedMode newMode) {
+  Supla::AutoLock autoLock(mutex);
   ledMode = newMode;
+}
+
+Supla::LedMode Supla::Device::StatusLed::getMode() const {
+  return ledMode;
+}
+
+void Supla::Device::StatusLed::onDeviceConfigChange(uint64_t fieldBit) {
+  if (fieldBit == SUPLA_DEVICE_CONFIG_FIELD_STATUS_LED) {
+    // reload config
+    SUPLA_LOG_DEBUG("StatusLed: reload config");
+    onLoadConfig(nullptr);
+  }
 }

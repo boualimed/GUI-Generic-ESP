@@ -17,50 +17,20 @@
 #include "SuplaDeviceGUI.h"
 #include <HardwareSerial.h>
 
+#include <Arduino.h>
+
 SuplaConfigESP::SuplaConfigESP() {
   configModeESP = Supla::DEVICE_MODE_NORMAL;
 
   if (ConfigManager->isDeviceConfigured()) {
     if (strcmp(ConfigManager->get(KEY_SUPLA_GUID)->getValue(), "") == 0 || strcmp(ConfigManager->get(KEY_SUPLA_AUTHKEY)->getValue(), "") == 0) {
-      clearEEPROM();
+      commonReset("SET FIRST DEVICE CONFIGURATION!", ResetType::RESET_FACTORY_DATA);
       ConfigManager->setGUIDandAUTHKEY();
+      ConfigManager->save();
     }
-
-    if (strcmp(ConfigManager->get(KEY_LOGIN)->getValue(), "") == 0)
-      ConfigManager->set(KEY_LOGIN, DEFAULT_LOGIN);
-
-    if (strcmp(ConfigManager->get(KEY_LOGIN_PASS)->getValue(), "") == 0)
-      ConfigManager->set(KEY_LOGIN_PASS, DEFAULT_LOGIN_PASS);
-
-    if (strcmp(ConfigManager->get(KEY_HOST_NAME)->getValue(), "") == 0)
-      ConfigManager->set(KEY_HOST_NAME, DEFAULT_HOSTNAME);
-
-    if (strcmp(ConfigManager->get(KEY_SUPLA_SERVER)->getValue(), "") == 0)
-      ConfigManager->set(KEY_SUPLA_SERVER, DEFAULT_SERVER);
-
-    if (strcmp(ConfigManager->get(KEY_SUPLA_EMAIL)->getValue(), "") == 0)
-      ConfigManager->set(KEY_SUPLA_EMAIL, DEFAULT_EMAIL);
-
-    if (strcmp(ConfigManager->get(KEY_ENABLE_GUI)->getValue(), "") == 0)
-      ConfigManager->set(KEY_ENABLE_GUI, getDefaultEnableGUI());
-
-    if (strcmp(ConfigManager->get(KEY_ENABLE_SSL)->getValue(), "") == 0)
-      ConfigManager->set(KEY_ENABLE_SSL, getDefaultEnableSSL());
-
-#ifdef TEMPLATE_BOARD_JSON
-    if (strcmp(ConfigManager->get(KEY_BOARD)->getValue(), "") == 0) {
-      Supla::TanplateBoard::addTemplateBoard();
+    else {
+      commonReset("SET DEVICE CONFIGURATION!", ResetType::RESET_NO_ERASE_DATA);
     }
-#elif defined(TEMPLATE_BOARD_OLD)
-    if (strcmp(ConfigManager->get(KEY_BOARD)->getValue(), "") == 0) {
-      chooseTemplateBoard(getDefaultTamplateBoard());
-    }
-#endif
-
-    if (ConfigESP->getGpio(FUNCTION_CFG_BUTTON) == OFF_GPIO)
-      ConfigESP->setGpio(0, FUNCTION_CFG_BUTTON);
-
-    ConfigManager->save();
 
     configModeInit();
   }
@@ -113,8 +83,9 @@ void SuplaConfigESP::addConfigESP(int _pinNumberConfig, int _pinLedConfig) {
     }
 
     Supla::Control::Button *buttonConfig = new Supla::Control::Button(pinNumberConfig, pullUp, invertLogic);
-    buttonConfig->setMulticlickTime(800);
-    buttonConfig->addAction(Supla::TURN_ON, *ConfigESP, Supla::ON_CLICK_1);
+    buttonConfig->setMulticlickTime(450);
+    buttonConfig->dontUseOnLoadConfig();
+    buttonConfig->addAction(CONFIG_MODE_RESET, *ConfigESP, Supla::ON_CLICK_1);
 
     if (modeConfigButton == CONFIG_MODE_10_ON_PRESSES) {
       buttonConfig->addAction(CONFIG_MODE_10_ON_PRESSES, *ConfigESP, Supla::ON_CLICK_10);
@@ -128,39 +99,37 @@ void SuplaConfigESP::addConfigESP(int _pinNumberConfig, int _pinLedConfig) {
 
 void SuplaConfigESP::handleAction(int event, int action) {
   if (action == CONFIG_MODE_10_ON_PRESSES) {
-    if (event == Supla::ON_CLICK_10) {
-      configModeInit();
-    }
+    configModeInit();
   }
-  if (action == CONFIG_MODE_5SEK_HOLD) {
-    if (event == Supla::ON_HOLD) {
-      configModeInit();
-    }
+  else if (action == CONFIG_MODE_5SEK_HOLD) {
+    configModeInit();
   }
-
-  if (configModeESP == Supla::DEVICE_MODE_CONFIG) {
-    if (event == Supla::ON_CLICK_1) {
-      rebootESP();
-    }
+  else if (configModeESP == Supla::DEVICE_MODE_CONFIG && action == CONFIG_MODE_RESET) {
+    rebootESP();
   }
 }
 
 void SuplaConfigESP::rebootESP() {
-  WiFi.disconnect(true);
+  // WebServer->httpServer->send(302, "text/plain", "");
+  Serial.println("Restarting ESP...");
   ESP.restart();
 }
 
 void SuplaConfigESP::configModeInit() {
-  configModeESP = Supla::DEVICE_MODE_CONFIG;
-  ledBlinking(100);
+  if (configModeESP != Supla::DEVICE_MODE_CONFIG) {
+    configModeESP = Supla::DEVICE_MODE_CONFIG;
+    ledBlinking(100);
 
-  Supla::Network::SetConfigMode();
+#ifndef SUPLA_WT32_ETH01_LAN8720
+    Supla::GUI::enableConnectionSSL(false);
+    Supla::GUI::setupConnection();
+#endif
 
-  Supla::GUI::enableConnectionSSL(false);
-  Supla::GUI::setupConnection();
+    Supla::Network::SetConfigMode();
 
-  if (getCountChannels() > 0) {
-    SuplaDevice.enterConfigMode();
+    // if (getCountChannels() > 0) {
+    //   SuplaDevice.enterConfigMode();
+    // }
   }
 }
 
@@ -222,7 +191,7 @@ void SuplaConfigESP::ledBlinkingStop(void) {
 }
 
 String SuplaConfigESP::getMacAddress(bool formating) {
-  byte mac[6];
+  uint8_t mac[6];
   WiFi.macAddress(mac);
   char baseMacChr[18] = {0};
 
@@ -232,6 +201,23 @@ String SuplaConfigESP::getMacAddress(bool formating) {
     sprintf(baseMacChr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
   return String(baseMacChr);
+}
+
+void SuplaConfigESP::getMacAddress(char *macAddress, bool formating) {
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+
+  if (formating) {
+    snprintf(macAddress, 18, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  }
+  else {
+    snprintf(macAddress, 13, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  }
+}
+
+void SuplaConfigESP::getFreeHeapAsString(char* freeHeapStr) {
+  float freeHeap = ESP.getFreeHeap() / 1024.0;
+  snprintf(freeHeapStr, 10, "%.2f", freeHeap);
 }
 
 void ledBlinkingTicker() {
@@ -336,46 +322,25 @@ int SuplaConfigESP::getGpio(int nr, int function) {
       return gpio;
 
 #ifdef GUI_SENSOR_I2C_EXPENDER
-    if ((ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_MCP23017).toInt() != FUNCTION_OFF ||
-         ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_PCF857X).toInt() != FUNCTION_OFF) &&
-        ((function == FUNCTION_RELAY) || (function == FUNCTION_BUTTON) || (function == FUNCTION_LIMIT_SWITCH))) {
-      uint8_t shift = 0;
-      uint8_t shiftPin = 0;
-      switch (ConfigManager->get(KEY_ACTIVE_EXPENDER)->getElement(function).toInt()) {
-        case EXPENDER_MCP23017:
-          shift = EXPENDER_SHIFT_MCP23017;
-          shiftPin = EXPENDER_SHIFT_PIN_MCP23017;
-          break;
-
-        case EXPENDER_PCF8575:
-          shift = EXPENDER_SHIFT_PCF8575;
-          shiftPin = EXPENDER_SHIFT_PIN_PCF8575;
-          break;
-
-        case EXPENDER_PCF8574:
-          shift = EXPENDER_SHIFT_PCF8574;
-          shiftPin = EXPENDER_SHIFT_PIN_PCF8574;
-          break;
-      }
-
+    if (ConfigManager->get(KEY_ACTIVE_EXPENDER)->getElement(function).toInt()) {
       if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_1).toInt() == function &&
           ConfigManager->get(key)->getElement(MCP23017_NR_1).toInt() == nr) {
-        return gpio + shift;
+        return gpio;
       }
 
       if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_2).toInt() == function &&
           ConfigManager->get(key)->getElement(MCP23017_NR_2).toInt() == nr) {
-        return (gpio + shift + shiftPin);
+        return gpio;
       }
 
       if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_3).toInt() == function &&
           ConfigManager->get(key)->getElement(MCP23017_NR_3).toInt() == nr) {
-        return gpio + shift + (shiftPin * 2);
+        return gpio;
       }
 
       if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_4).toInt() == function &&
           ConfigManager->get(key)->getElement(MCP23017_NR_4).toInt() == nr) {
-        return gpio + shift + (shiftPin * 3);
+        return gpio;
       }
     }
 #endif
@@ -422,6 +387,7 @@ HardwareSerial &SuplaConfigESP::getHardwareSerial(int8_t rxPin, int8_t txPin) {
 #endif
 #endif
 
+#if SOC_UART_NUM > 1
 #ifndef RX1
 #if CONFIG_IDF_TARGET_ESP32
 #define RX1 9
@@ -445,7 +411,9 @@ HardwareSerial &SuplaConfigESP::getHardwareSerial(int8_t rxPin, int8_t txPin) {
 #define TX1 16
 #endif
 #endif
+#endif /* SOC_UART_NUM > 1 */
 
+#if SOC_UART_NUM > 2
 #ifndef RX2
 #if CONFIG_IDF_TARGET_ESP32
 #define RX2 16
@@ -461,20 +429,28 @@ HardwareSerial &SuplaConfigESP::getHardwareSerial(int8_t rxPin, int8_t txPin) {
 #define TX2 20
 #endif
 #endif
+#endif /* SOC_UART_NUM > 2 */
 
+#if SOC_UART_NUM > 1
   if (rxPin == RX1 || txPin == RX1) {
     return Serial1;
   }
-  else if (rxPin == RX2 || txPin == TX2) {
+#endif
+
+#if SOC_UART_NUM > 2
+  if (rxPin == RX2 || txPin == TX2) {
     return Serial2;
   }
+#endif
+
 #else
   // toggle between use of GPIO13/GPIO15 or GPIO3/GPIO(1/2) as RX and TX
   if (rxPin == 13 || txPin == 15) {
     Serial.swap();
     return Serial;
   }
-  else if (rxPin == 2 && txPin == -1) {
+
+  if (rxPin == 2 && txPin == -1) {
     return Serial1;
   }
 #endif
@@ -484,81 +460,55 @@ HardwareSerial &SuplaConfigESP::getHardwareSerial(int8_t rxPin, int8_t txPin) {
   return Serial;
 }
 
+uint8_t SuplaConfigESP::getBaudRate(uint8_t gpio) {
+  return ConfigManager->get(getKeyGpio(gpio))->getElement(ACTION_BUTTON).toInt();
+}
+
+void SuplaConfigESP::setBaudRate(uint8_t gpio, int baudRate) {
+  ConfigManager->setElement(getKeyGpio(gpio), ACTION_BUTTON, baudRate);
+}
+
+int SuplaConfigESP::getBaudRateSpeed(uint8_t gpio) {
+  switch (getBaudRate(gpio)) {
+    case BAUDRATE_1200:
+      return 1200;
+    case BAUDRATE_2400:
+      return 2400;
+    case BAUDRATE_4800:
+      return 4800;
+    case BAUDRATE_9600:
+      return 9600;
+    case BAUDRATE_19200:
+      return 19200;
+    case BAUDRATE_38400:
+      return 38400;
+  }
+  return 9600;
+}
+
 uint8_t SuplaConfigESP::getNumberButton(uint8_t nr) {
 #ifdef GUI_SENSOR_I2C_EXPENDER
-  if (strcmp(ConfigManager->get(KEY_NUMBER_BUTTON)->getElement(nr).c_str(), "") != 0 && !ConfigESP->checkActiveMCP23017(FUNCTION_BUTTON)) {
-    return ConfigManager->get(KEY_NUMBER_BUTTON)->getElement(nr).toInt();
-  }
-  else {
-    return nr;
+  if (strcmp(ConfigManager->get(KEY_EXPANDER_NUMBER_BUTTON)->getElement(nr).c_str(), "") != 0) {
+    return ConfigManager->get(KEY_EXPANDER_NUMBER_BUTTON)->getElement(nr).toInt();
   }
 #else
   if (strcmp(ConfigManager->get(KEY_NUMBER_BUTTON)->getElement(nr).c_str(), "") != 0) {
     return ConfigManager->get(KEY_NUMBER_BUTTON)->getElement(nr).toInt();
   }
-  else {
-    return nr;
-  }
 #endif
+
+  return nr;
+}
+
+uint8_t SuplaConfigESP::getNumberButtonAdditional(uint8_t functionButton, uint8_t nr) {
+  if (strcmp(ConfigManager->get(KEY_NUMBER_BUTTON_ADDITIONAL)->getElement(functionButton + nr).c_str(), "") != 0) {
+    return ConfigManager->get(KEY_NUMBER_BUTTON_ADDITIONAL)->getElement(functionButton + nr).toInt();
+  }
+
+  return nr;
 }
 
 uint8_t SuplaConfigESP::getKeyGpio(uint8_t gpio) {
-#ifdef GUI_SENSOR_I2C_EXPENDER
-
-#ifdef SUPLA_MCP23017
-  if ((gpio >= EXPENDER_SHIFT_MCP23017) && (gpio < EXPENDER_SHIFT_PIN_MCP23017 + EXPENDER_SHIFT_MCP23017)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_MCP23017;
-  }
-  if ((gpio >= EXPENDER_SHIFT_PIN_MCP23017 + EXPENDER_SHIFT_MCP23017) && (gpio < (EXPENDER_SHIFT_PIN_MCP23017 * 2) + EXPENDER_SHIFT_MCP23017)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_MCP23017 - EXPENDER_SHIFT_PIN_MCP23017;
-  }
-  if ((gpio >= (EXPENDER_SHIFT_PIN_MCP23017 * 2) + EXPENDER_SHIFT_MCP23017) && (gpio < (EXPENDER_SHIFT_PIN_MCP23017 * 3) + EXPENDER_SHIFT_MCP23017)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_MCP23017 - (EXPENDER_SHIFT_PIN_MCP23017 * 2);
-  }
-  if ((gpio >= (EXPENDER_SHIFT_PIN_MCP23017 * 3) + EXPENDER_SHIFT_MCP23017) && (gpio < (EXPENDER_SHIFT_PIN_MCP23017 * 4) + EXPENDER_SHIFT_MCP23017)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_MCP23017 - (EXPENDER_SHIFT_PIN_MCP23017 * 3);
-  }
-#endif
-
-#ifdef SUPLA_PCF8575
-  if ((gpio >= EXPENDER_SHIFT_PCF8575) && (gpio < EXPENDER_SHIFT_PIN_PCF8575 + EXPENDER_SHIFT_PCF8575)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8575;
-  }
-  if ((gpio >= EXPENDER_SHIFT_PIN_PCF8575 + EXPENDER_SHIFT_PCF8575) && (gpio < (EXPENDER_SHIFT_PIN_PCF8575 * 2) + EXPENDER_SHIFT_PCF8575)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8575 - EXPENDER_SHIFT_PIN_PCF8575;
-  }
-  if ((gpio >= (EXPENDER_SHIFT_PIN_PCF8575 * 2) + EXPENDER_SHIFT_PCF8575) && (gpio < (EXPENDER_SHIFT_PIN_PCF8575 * 3) + EXPENDER_SHIFT_PCF8575)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8575 - (EXPENDER_SHIFT_PIN_PCF8575 * 2);
-  }
-  if ((gpio >= (EXPENDER_SHIFT_PIN_PCF8575 * 3) + EXPENDER_SHIFT_PCF8575) && (gpio < (EXPENDER_SHIFT_PIN_PCF8575 * 4) + EXPENDER_SHIFT_PCF8575)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8575 - (EXPENDER_SHIFT_PIN_PCF8575 * 3);
-  }
-#endif
-
-#ifdef SUPLA_PCF8574
-  if ((gpio >= EXPENDER_SHIFT_PCF8574) && (gpio < EXPENDER_SHIFT_PIN_PCF8574 + EXPENDER_SHIFT_PCF8574)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8574;
-  }
-  if ((gpio >= EXPENDER_SHIFT_PIN_PCF8574 + EXPENDER_SHIFT_PCF8574) && (gpio < (EXPENDER_SHIFT_PIN_PCF8574 * 2) + EXPENDER_SHIFT_PCF8574)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8574 - EXPENDER_SHIFT_PIN_PCF8574;
-  }
-  if ((gpio >= (EXPENDER_SHIFT_PIN_PCF8574 * 2) + EXPENDER_SHIFT_PCF8574) && (gpio < (EXPENDER_SHIFT_PIN_PCF8574 * 3) + EXPENDER_SHIFT_PCF8574)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8574 - (EXPENDER_SHIFT_PIN_PCF8574 * 2);
-  }
-  if ((gpio >= (EXPENDER_SHIFT_PIN_PCF8574 * 3) + EXPENDER_SHIFT_PCF8574) && (gpio < (EXPENDER_SHIFT_PIN_PCF8574 * 4) + EXPENDER_SHIFT_PCF8574)) {
-    return KEY_GPIO + gpio - EXPENDER_SHIFT_PCF8574 - (EXPENDER_SHIFT_PIN_PCF8574 * 3);
-  }
-#endif
-//  if ((gpio > 99) && (gpio < 116))
-//    return KEY_GPIO + gpio - 100;
-//  if ((gpio > 115) && (gpio < 132))
-//    return KEY_GPIO + gpio - 116;
-//  if ((gpio > 131) && (gpio < 148))
-//    return KEY_GPIO + gpio - 132;
-//  if ((gpio > 147) && (gpio < 164))
-//    return KEY_GPIO + gpio - 148;
-#endif
-
   return KEY_GPIO + gpio;
 }
 
@@ -588,8 +538,49 @@ uint8_t SuplaConfigESP::getAction(uint8_t gpio) {
   return ConfigManager->get(getKeyGpio(gpio))->getElement(ACTION_BUTTON).toInt();
 }
 
+Supla::Action SuplaConfigESP::getActionInternal(uint8_t gpio) {
+  Supla::Action actionInternal = static_cast<Supla::Action>(ConfigManager->get(getKeyGpio(gpio))->getElement(ACTION_BUTTON).toInt());
+
+  switch (actionInternal) {
+    case Supla::GUI::Action::TURN_ON:
+      return Supla::Action::TURN_ON;
+    case Supla::GUI::Action::TURN_OFF:
+      return Supla::Action::TURN_OFF;
+    case Supla::GUI::Action::TOGGLE:
+      return Supla::Action::TOGGLE;
+    case Supla::GUI::Action::INCREASE_TEMPERATURE:
+      return Supla::Action::INCREASE_TEMPERATURE;
+    case Supla::GUI::Action::DECREASE_TEMPERATURE:
+      return Supla::Action::DECREASE_TEMPERATURE;
+    case Supla::GUI::Action::TOGGLE_MANUAL_WEEKLY_SCHEDULE_MODES:
+      return Supla::Action::TOGGLE_MANUAL_WEEKLY_SCHEDULE_MODES;
+    case Supla::GUI::Action::TOGGLE_OFF_MANUAL_WEEKLY_SCHEDULE_MODES:
+      return Supla::Action::TOGGLE_OFF_MANUAL_WEEKLY_SCHEDULE_MODES;
+    default:
+      return actionInternal;
+  }
+}
+
 uint8_t SuplaConfigESP::getEvent(uint8_t gpio) {
   return ConfigManager->get(getKeyGpio(gpio))->getElement(EVENT_BUTTON).toInt();
+}
+
+uint8_t SuplaConfigESP::getLightRelay(uint8_t gpio) {
+  return ConfigManager->get(getKeyGpio(gpio))->getElement(EVENT_BUTTON).toInt();
+}
+
+int SuplaConfigESP::getBrightnessLevelOLED() {
+  int currentBrightness = ConfigManager->get(KEY_OLED_BACK_LIGHT)->getValueInt();
+  return (currentBrightness > 0) ? (currentBrightness + 1) : currentBrightness;
+}
+
+void SuplaConfigESP::setBrightnessLevelOLED(int newBrightness) {
+  if (newBrightness > 0) {
+    ConfigManager->set(KEY_OLED_BACK_LIGHT, newBrightness - 1);
+  }
+  else {
+    ConfigManager->set(KEY_OLED_BACK_LIGHT, newBrightness);
+  }
 }
 
 bool SuplaConfigESP::checkBusyCfg(int gpio, int function) {
@@ -672,6 +663,22 @@ void SuplaConfigESP::setEvent(uint8_t gpio, int event) {
   ConfigManager->setElement(getKeyGpio(gpio), EVENT_BUTTON, event);
 }
 
+void SuplaConfigESP::setLightRelay(uint8_t gpio, int type) {
+  ConfigManager->setElement(getKeyGpio(gpio), EVENT_BUTTON, type);
+}
+
+void SuplaConfigESP::setNumberButton(uint8_t nr, uint8_t nrButton) {
+#ifdef GUI_SENSOR_I2C_EXPENDER
+  ConfigManager->setElement(KEY_EXPANDER_NUMBER_BUTTON, nr, nrButton);
+#else
+  // int maxRelayValue = ConfigManager->get(KEY_MAX_RELAY)->getValueInt() - 1;
+  // if (nrButton >= maxRelayValue) {
+  //   nrButton = maxRelayValue;
+  // }
+  ConfigManager->setElement(KEY_NUMBER_BUTTON, nr, nrButton);
+#endif
+}
+
 void SuplaConfigESP::setGpio(uint8_t gpio, uint8_t nr, uint8_t function) {
   uint8_t key;
   nr++;
@@ -699,7 +706,7 @@ void SuplaConfigESP::setGpio(uint8_t gpio, uint8_t nr, uint8_t function) {
    */
 }
 
-void SuplaConfigESP::clearGpio(uint8_t gpio, uint8_t function) {
+void SuplaConfigESP::clearGpio(uint8_t gpio, uint8_t function, uint8_t nr) {
   uint8_t key = KEY_GPIO + gpio;
 
   if (function == FUNCTION_CFG_BUTTON) {
@@ -716,29 +723,38 @@ void SuplaConfigESP::clearGpio(uint8_t gpio, uint8_t function) {
   ConfigManager->setElement(key, FUNCTION, FUNCTION_OFF);
 
   if (function == FUNCTION_BUTTON || function == FUNCTION_BUTTON_STOP) {
+    setNumberButton(nr);
     setPullUp(gpio, true);
     setInversed(gpio, true);
 
-    setAction(gpio, Supla::Action::TOGGLE);
-    setEvent(gpio, Supla::Event::ON_PRESS);
+    setAction(gpio, Supla::GUI::Action::TOGGLE);
+    setEvent(gpio, Supla::GUI::Event::ON_PRESS);
   }
   if (function == FUNCTION_RELAY) {
     setLevel(gpio, LOW);
     setMemory(gpio, MEMORY_RESTORE);
+
+#ifdef SUPLA_THERMOSTAT
+    ConfigManager->setElement(KEY_THERMOSTAT_TYPE, nr, Supla::GUI::THERMOSTAT_OFF);
+#endif
   }
   if (function == FUNCTION_LIMIT_SWITCH) {
     setPullUp(gpio, true);
   }
+
+  if (gpio == GPIO_VIRTUAL_RELAY) {
+    ConfigManager->setElement(KEY_VIRTUAL_RELAY, nr, false);
+  }
+
+#ifdef ARDUINO_ARCH_ESP8266
+  if (gpio == A0) {
+    ConfigManager->setElement(KEY_ANALOG_BUTTON, nr, false);
+  }
+#endif
 }
 
 uint8_t SuplaConfigESP::countFreeGpio(uint8_t exception) {
   uint8_t count = 1;
-
-#ifdef GUI_SENSOR_I2C_EXPENDER
-  if (ConfigESP->checkActiveMCP23017(exception)) {
-    return 32;
-  }
-#endif
 
   for (uint8_t gpio = 0; gpio < OFF_GPIO; gpio++) {
     if (checkGpio(gpio)) {
@@ -752,7 +768,13 @@ uint8_t SuplaConfigESP::countFreeGpio(uint8_t exception) {
   }
 
   if (exception == FUNCTION_RELAY)
-    count = count + MAX_VIRTUAL_RELAY;
+    count += MAX_VIRTUAL_RELAY;
+
+#ifdef GUI_SENSOR_I2C_EXPENDER
+  if (Expander->checkActiveExpander(exception)) {
+    count += MAX_EXPANDER_FOR_FUNCTION;
+  }
+#endif
 
   return count;
 }
@@ -774,229 +796,76 @@ bool SuplaConfigESP::checkGpio(int gpio) {
   return true;
 }
 
-#ifdef GUI_SENSOR_I2C_EXPENDER
-bool SuplaConfigESP::checkBusyGpioMCP23017(uint8_t gpio, uint8_t nr, uint8_t function) {
-  uint8_t key = KEY_GPIO + gpio;
-  uint8_t address = OFF_ADDRESS_MCP23017, maxNr;
-  uint8_t type = ConfigManager->get(KEY_ACTIVE_EXPENDER)->getElement(function).toInt();
+void SuplaConfigESP::commonReset(const char *resetMessage, ResetType resetType, bool forceReset) {
+  struct KeyValuePair {
+    uint8_t key;
+    const char *defaultValue;
+  };
 
-  if (type == EXPENDER_PCF8574) {
-    maxNr = 8;
-  }
-  else {
-    maxNr = 16;
-  }
+  Serial.println(resetMessage);
 
-  if (nr < maxNr) {
-    maxNr = 0;
-  }
-
-  for (uint8_t gpio = maxNr; gpio <= OFF_GPIO_EXPENDER; gpio++) {
-    address = ConfigESP->getAdressMCP23017(gpio, function);
-
-    if (address != OFF_ADDRESS_MCP23017) {
-      break;
+  if (resetType == RESET_FACTORY_DATA || resetType == RESET_DEVICE_DATA) {
+    clearEEPROM();
+    if (resetType == RESET_FACTORY_DATA) {
+      ConfigManager->deleteAllValues();
     }
-  }
-
-  if (ConfigManager->get(key)->getElement(getFunctionMCP23017(address)).toInt() != FUNCTION_OFF) {
-    return false;
-  }
-  return true;
-}
-
-uint8_t SuplaConfigESP::getGpioMCP23017(uint8_t nr, uint8_t function) {
-  uint8_t key, address;
-  for (uint8_t gpio = 0; gpio <= OFF_GPIO_EXPENDER; gpio++) {
-    key = KEY_GPIO + gpio;
-    address = getAdressMCP23017(nr, function);
-
-    if (address != OFF_ADDRESS_MCP23017) {
-      if (ConfigManager->get(key)->getElement(getFunctionMCP23017(address)).toInt() == function)
-        if (ConfigManager->get(key)->getElement(getNrMCP23017(address)).toInt() == nr)
-          return gpio;
-    }
-    delay(0);
-  }
-  return OFF_GPIO_EXPENDER;
-}
-
-uint8_t SuplaConfigESP::getAdressMCP23017(uint8_t nr, uint8_t function) {
-  for (uint8_t gpio = 0; gpio <= OFF_GPIO_EXPENDER; gpio++) {
-    uint8_t key = KEY_GPIO + gpio;
-
-    if (ConfigManager->get(key)->getElement(MCP23017_NR_1).toInt() == nr)
-      if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_1).toInt() == function)
-        return 0;
-
-    if (ConfigManager->get(key)->getElement(MCP23017_NR_2).toInt() == nr)
-      if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_2).toInt() == function)
-        return 1;
-
-    if (ConfigManager->get(key)->getElement(MCP23017_NR_3).toInt() == nr)
-      if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_3).toInt() == function)
-        return 2;
-
-    if (ConfigManager->get(key)->getElement(MCP23017_NR_4).toInt() == nr)
-      if (ConfigManager->get(key)->getElement(MCP23017_FUNCTION_4).toInt() == function)
-        return 3;
-    delay(0);
-  }
-  return OFF_ADDRESS_MCP23017;
-}
-
-void SuplaConfigESP::setGpioMCP23017(uint8_t gpio, uint8_t adress, uint8_t nr, uint8_t function) {
-  uint8_t key;
-  key = KEY_GPIO + gpio;
-
-  ConfigManager->setElement(key, getNrMCP23017(adress), nr);
-  ConfigManager->setElement(key, getFunctionMCP23017(adress), function);
-
-  // dla MCP23017 zawsze ustawiać taką samą wartość level, memory, action, event jak dla pierwszego elementu
-  setLevel(gpio, ConfigESP->getLevel(gpio));
-  setMemory(gpio, ConfigESP->getMemory(gpio));
-  setPullUp(gpio, ConfigESP->getPullUp(gpio));
-  setInversed(gpio, ConfigESP->getInversed(gpio));
-  setAction(gpio, ConfigESP->getAction(gpio));
-  setEvent(gpio, ConfigESP->getEvent(gpio));
-}
-
-void SuplaConfigESP::clearGpioMCP23017(uint8_t gpio, uint8_t nr, uint8_t function) {
-  uint8_t key = KEY_GPIO + gpio;
-  uint8_t adress = getAdressMCP23017(nr, function);
-
-  if (getNrMCP23017(adress) != OFF_GPIO_EXPENDER)
-    ConfigManager->setElement(key, getNrMCP23017(adress), 0);
-  if (getFunctionMCP23017(adress) != OFF_GPIO_EXPENDER)
-    ConfigManager->setElement(key, getFunctionMCP23017(adress), FUNCTION_OFF);
-
-  if (function == FUNCTION_BUTTON) {
-    setPullUp(gpio, true);
-    setInversed(gpio, true);
-    setAction(gpio, Supla::Action::TOGGLE);
-    setEvent(gpio, Supla::Event::ON_CHANGE);
-  }
-
-  if (function == FUNCTION_LIMIT_SWITCH) {
-    setPullUp(gpio, true);
-  }
-
-  if (function == FUNCTION_RELAY) {
-    setLevel(gpio, true);
-    setMemory(gpio, 0);
-  }
-}
-
-void SuplaConfigESP::clearFunctionGpio(uint8_t function) {
-  for (uint8_t gpio = 0; gpio <= OFF_GPIO; gpio++) {
-    uint8_t key = KEY_GPIO + gpio;
-
-    if (ConfigManager->get(key)->getElement(FUNCTION).toInt() == function) {
-      ConfigManager->setElement(key, NR, 0);
-      ConfigManager->setElement(key, FUNCTION, FUNCTION_OFF);
+    else if (resetType == RESET_DEVICE_DATA) {
+      ConfigManager->deleteDeviceValues();
     }
 
-    clearGpioMCP23017(gpio, gpio, function);
-
-    delay(0);
-  }
-}
-
-bool SuplaConfigESP::checkActiveMCP23017(uint8_t function) {
-  // return (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_MCP23017).toInt() != FUNCTION_OFF ||
-  //         ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_PCF857X).toInt() != FUNCTION_OFF) &&
-  //        ((ConfigESP->getGpio(function) >= 100 || ConfigESP->getGpio(function) == OFF_GPIO));
-
-  return (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_MCP23017).toInt() != FUNCTION_OFF ||
-          ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_PCF857X).toInt() != FUNCTION_OFF) &&
-         ConfigManager->get(KEY_ACTIVE_EXPENDER)->getElement(function).toInt();
-}
-
-uint8_t SuplaConfigESP::getFunctionMCP23017(uint8_t adress) {
-  switch (adress) {
-    case 0:
-      return MCP23017_FUNCTION_1;
-      break;
-    case 1:
-      return MCP23017_FUNCTION_2;
-      break;
-    case 2:
-      return MCP23017_FUNCTION_3;
-      break;
-    case 3:
-      return MCP23017_FUNCTION_4;
-      break;
-  }
-  return OFF_GPIO_EXPENDER;
-}
-
-uint8_t SuplaConfigESP::getNrMCP23017(uint8_t adress) {
-  switch (adress) {
-    case 0:
-      return MCP23017_NR_1;
-      break;
-    case 1:
-      return MCP23017_NR_2;
-      break;
-    case 2:
-      return MCP23017_NR_3;
-      break;
-    case 3:
-      return MCP23017_NR_4;
-      break;
-  }
-  return OFF_GPIO_EXPENDER;
-}
+#ifdef TEMPLATE_BOARD_JSON
+    if (strcmp(ConfigManager->get(KEY_BOARD)->getValue(), "") == 0) {
+      Supla::TanplateBoard::addTemplateBoard();
+    }
+#elif defined(TEMPLATE_BOARD_OLD)
+    if (strcmp(ConfigManager->get(KEY_BOARD)->getValue(), "") == 0) {
+      chooseTemplateBoard(getDefaultTamplateBoard());
+    }
 #endif
 
-void SuplaConfigESP::factoryReset(bool forceReset) {
-  delay(2000);
-  pinMode(0, INPUT_PULLUP);
-  if (digitalRead(0) != HIGH || forceReset) {
-    Serial.println(F("FACTORY RESET!!!"));
+#ifdef SUPLA_BONEIO
+    ConfigESP->setMemory(BONEIO_RELAY_CONFIG, true);
+#ifdef USE_MCP_OUTPUT
+    ConfigESP->setLevel(BONEIO_RELAY_CONFIG, HIGH);
+#else
+    ConfigESP->setLevel(BONEIO_RELAY_CONFIG, LOW);
+#endif
+#else
+    if (resetType == RESET_FACTORY_DATA) {
+      if (ConfigESP->getGpio(FUNCTION_CFG_LED) == OFF_GPIO) {
+        ConfigESP->setGpio(2, FUNCTION_CFG_LED);
+        ConfigESP->setLevel(2, LOW);
+      }
 
-    clearEEPROM();
+      if (ConfigESP->getGpio(FUNCTION_CFG_BUTTON) == OFF_GPIO) {
+        ConfigESP->setGpio(0, FUNCTION_CFG_BUTTON);
+      }
+    }
+#endif
+  }
 
-    ConfigManager->deleteAllValues();
+  KeyValuePair keysToUpdate[] = {
+      {KEY_LOGIN, DEFAULT_LOGIN},
+      {KEY_LOGIN_PASS, DEFAULT_LOGIN_PASS},
+      {KEY_HOST_NAME, DEFAULT_HOSTNAME},
+      {KEY_SUPLA_SERVER, DEFAULT_SERVER},
+      {KEY_SUPLA_EMAIL, DEFAULT_EMAIL},
+      {KEY_ENABLE_GUI, getDefaultEnableGUI() ? "1" : "0"},
+      {KEY_ENABLE_SSL, getDefaultEnableSSL() ? "1" : "0"},
+      {KEY_AT_MULTICLICK_TIME, DEFAULT_AT_MULTICLICK_TIME},
+      {KEY_AT_HOLD_TIME, DEFAULT_AT_HOLD_TIME},
+  };
 
-    ConfigManager->set(KEY_SUPLA_SERVER, DEFAULT_SERVER);
-    ConfigManager->set(KEY_SUPLA_EMAIL, DEFAULT_EMAIL);
-    ConfigManager->set(KEY_HOST_NAME, DEFAULT_HOSTNAME);
-    ConfigManager->set(KEY_LOGIN, DEFAULT_LOGIN);
-    ConfigManager->set(KEY_LOGIN_PASS, DEFAULT_LOGIN_PASS);
-    ConfigManager->set(KEY_ENABLE_GUI, getDefaultEnableGUI());
-    ConfigManager->set(KEY_ENABLE_SSL, getDefaultEnableSSL());
-    Supla::TanplateBoard::addTemplateBoard();
-    if (ConfigESP->getGpio(FUNCTION_CFG_BUTTON) == OFF_GPIO)
-      ConfigESP->setGpio(0, FUNCTION_CFG_BUTTON);
-
-    ConfigManager->save();
-
-    if (!forceReset) {
-      rebootESP();
+  for (auto &kvp : keysToUpdate) {
+    if (strcmp(ConfigManager->get(kvp.key)->getValue(), "") == 0) {
+      ConfigManager->set(kvp.key, kvp.defaultValue);
     }
   }
-}
-void SuplaConfigESP::reset(bool forceReset) {
-  delay(2000);
-  pinMode(0, INPUT_PULLUP);
-  if (digitalRead(0) != HIGH || forceReset) {
-    Serial.println(F("DEVICES CONFIGURATION RESET!"));
 
-    clearEEPROM();
-    ConfigManager->deleteDeviceValues();
+  ConfigManager->save();
 
-    ConfigManager->set(KEY_ENABLE_GUI, getDefaultEnableGUI());
-    ConfigManager->set(KEY_ENABLE_SSL, getDefaultEnableSSL());
-    Supla::TanplateBoard::addTemplateBoard();
-    if (ConfigESP->getGpio(FUNCTION_CFG_BUTTON) == OFF_GPIO)
-      ConfigESP->setGpio(0, FUNCTION_CFG_BUTTON);
-
-    ConfigManager->save();
-
-    if (!forceReset) {
-      rebootESP();
-    }
+  if (forceReset) {
+    rebootESP();
   }
 }
 

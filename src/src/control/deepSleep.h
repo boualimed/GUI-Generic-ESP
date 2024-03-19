@@ -13,7 +13,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
-
+#ifdef SUPLA_DEEP_SLEEP
 #ifndef _deepSleep_h
 #define _deepSleep_h
 
@@ -27,7 +27,7 @@ namespace Control {
 
 class DeepSleep : public Element {
  public:
-  DeepSleep(unsigned _supla_int_t sleepTimeSec, unsigned _supla_int_t iterateTimeSec);
+  DeepSleep(unsigned _supla_int_t sleepTimeSec);
 
   void iterateAlways();
   void onInit();
@@ -35,10 +35,11 @@ class DeepSleep : public Element {
  protected:
   unsigned _supla_int_t sleepTimeSec;
   unsigned _supla_int_t iterateTimeSec;
-  unsigned long lastReadTime;
+  unsigned long lastUpdateCheckTime;
 };
 
 };  // namespace Control
 };  // namespace Supla
 
+#endif
 #endif

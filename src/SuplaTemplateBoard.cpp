@@ -41,6 +41,17 @@ String templateBoardWarning;
 bool oldVersion = false;
 
 void chooseTemplateBoard(String board) {
+  const size_t capacity = JSON_ARRAY_SIZE(14) + JSON_OBJECT_SIZE(4) + 200;
+  DynamicJsonBuffer jsonBuffer(capacity);
+
+  JsonObject& root = jsonBuffer.parseObject(board);
+  JsonArray& GPIO = root["GPIO"];
+
+  if (GPIO.size() == 0) {
+    templateBoardWarning += "Błąd wczytania<br>";
+    return;
+  }
+
   ConfigESP->clearEEPROM();
   ConfigManager->deleteGPIODeviceValues();
   templateBoardWarning = "";
@@ -54,17 +65,14 @@ void chooseTemplateBoard(String board) {
   ConfigManager->set(KEY_ANALOG_BUTTON, "");
   ConfigManager->set(KEY_ANALOG_INPUT_EXPECTED, "");
 
+  ConfigManager->set(KEY_MAX_CONDITIONS, "0");
+  ConfigManager->set(KEY_CONDITIONS_CLIENT_TYPE, "");
+  ConfigManager->set(KEY_CONDITIONS_CLIENT_TYPE_NUMBER, "");
   ConfigManager->set(KEY_CONDITIONS_SENSOR_TYPE, "");
   ConfigManager->set(KEY_CONDITIONS_SENSOR_NUMBER, "");
   ConfigManager->set(KEY_CONDITIONS_TYPE, "");
   ConfigManager->set(KEY_CONDITIONS_MIN, "");
   ConfigManager->set(KEY_CONDITIONS_MAX, "");
-
-  const size_t capacity = JSON_ARRAY_SIZE(14) + JSON_OBJECT_SIZE(4) + 200;
-  DynamicJsonBuffer jsonBuffer(capacity);
-
-  JsonObject& root = jsonBuffer.parseObject(board);
-  JsonArray& GPIO = root["GPIO"];
 
   //"BTNACTION":[0,1,2]
   // 0 - Supla::Action::TURN_ON
@@ -86,9 +94,12 @@ void chooseTemplateBoard(String board) {
     // addButton(i, A0, Supla::Event::ON_CHANGE, buttonAction, true, true);
   }
 
-  // {"NAME":"Shelly 2.5","GPIO":[320,0,32,0,224,193,0,0,640,192,608,225,3456,4736],"COND":[{"relay":0,"type":2,"number":1,"condition":1,"data":[20.5,21.1]},{"relay":1,"type":3,"number":1,"condition":1,"data":[20.5,21.1]}]}
-  // {"NAME":"Shelly 2.5","GPIO":[320,0,32,0,224,193,0,0,640,192,608,225,3456,4736],"COND":[[0,1,0,1,20.5,21.1],[1,20,0,7,"",1]]}
-  // "COND":[numberRelay,type,numberSensor,condition,valueON,valueOFF]
+  // {"NAME":"Shelly 2.5","GPIO":[320,0,32,0,224,193,0,0,640,192,608,225,3456,4736],"COND":[[0,0,10,0,0,"",90],[0,1,10,0,0,"",90]]}
+  // "COND":[typeExecuitive, numberExecuitive,typeSensor,numberSensor,condition,valueON,valueOFF]
+  //"typeExecuitive"
+  // 0 - EXECUTIVE_RELAY
+  // 1 - EXECUTIVE_RGBW
+
   //"type"
   // 0 - NO_SENSORS
   // 1 - SENSOR_DS18B20
@@ -113,40 +124,41 @@ void chooseTemplateBoard(String board) {
   // 20 - SENSOR_BINARY
 
   //"condition"
-  //  0 - CONDITION_HEATING
-  //  1 - CONDITION_COOLING
-  //  2 - CONDITION_MOISTURIZING
-  //  3 - CONDITION_DRAINGE
-  //  4 - CONDITION_VOLTAGE
-  //  5 - CONDITION_TOTAL_CURRENT
-  //  6 - CONDITION_TOTAL_POWER_ACTIVE
+  //  0 - CONDITION_ON_LESS
+  //  1 - CONDITION_ON_GREATER
+  //  2 - CONDITION_ON_LESS_HUMIDITY
+  //  3 - CONDITION_ON_GREATER_HUMIDITY
+  //  4 - CONDITION_ON_LESS_VOLTAGE
+  //  5 - CONDITION_ON_LESS_CURRENT
+  //  6 - CONDITION_ON_LESS_POWER_ACTIVE
   //  7 - CONDITION_GPIO
+
+  // "COND":[typeExecuitive, numberExecuitive,typeSensor,numberSensor,condition,valueON,valueOFF]
 
   JsonArray& conditions = root["COND"];
 
   for (size_t i = 0; i < conditions.size(); i++) {
-    int relay = (int)conditions[i][0];  //"relay"
+    uint8_t maxConditions = ConfigManager->get(KEY_MAX_CONDITIONS)->getValueInt();
 
-    ConfigManager->setElement(KEY_CONDITIONS_SENSOR_TYPE, relay, (int)conditions[i][1]);    // "type"
-    ConfigManager->setElement(KEY_CONDITIONS_SENSOR_NUMBER, relay, (int)conditions[i][2]);  // "number"
-    ConfigManager->setElement(KEY_CONDITIONS_TYPE, relay, (int)conditions[i][3]);           // "condition"
-
-    if (strcmp(conditions[i][4], "") != 0) {
-      ConfigManager->setElement(KEY_CONDITIONS_MIN, relay, (const char*)conditions[i][4]);  // "valueON"
-    }
+    ConfigManager->setElement(KEY_CONDITIONS_CLIENT_TYPE, maxConditions, (int)conditions[i][0]);         // typeExecuitive
+    ConfigManager->setElement(KEY_CONDITIONS_CLIENT_TYPE_NUMBER, maxConditions, (int)conditions[i][1]);  // numberExecuitive
+    ConfigManager->setElement(KEY_CONDITIONS_SENSOR_TYPE, maxConditions, (int)conditions[i][2]);         // typeSensor
+    ConfigManager->setElement(KEY_CONDITIONS_SENSOR_NUMBER, maxConditions, (int)conditions[i][3]);       // numberSensor
+    ConfigManager->setElement(KEY_CONDITIONS_TYPE, maxConditions, (int)conditions[i][4]);                // condition
 
     if (strcmp(conditions[i][5], "") != 0) {
-      ConfigManager->setElement(KEY_CONDITIONS_MAX, relay, (const char*)conditions[i][5]);  // "valueOFF"
+      ConfigManager->setElement(KEY_CONDITIONS_MIN, maxConditions, (const char*)conditions[i][5]);  // "valueON"
     }
+
+    if (strcmp(conditions[i][6], "") != 0) {
+      ConfigManager->setElement(KEY_CONDITIONS_MAX, maxConditions, (const char*)conditions[i][6]);  // "valueOFF"
+    }
+
+    ConfigManager->set(KEY_MAX_CONDITIONS, maxConditions + 1);
   }
 
   String name = root["NAME"];
   ConfigManager->set(KEY_HOST_NAME, name.c_str());
-
-  if (GPIO.size() == 0) {
-    templateBoardWarning += "Błąd wczytania<br>";
-    return;
-  }
 
 #ifdef ARDUINO_ARCH_ESP8266
   if (GPIO.size() == 13) {
@@ -192,6 +204,13 @@ void chooseTemplateBoard(String board) {
         ConfigESP->setGpio(gpio, FUNCTION_SDA);
         break;
 
+      case NewI2CSCL2:
+        ConfigESP->setGpio(gpio, FUNCTION_SCL_2);
+        break;
+      case NewI2CSDA2:
+        ConfigESP->setGpio(gpio, FUNCTION_SDA_2);
+        break;
+
       case NewRelay1:
         addRelay(0, gpio);
         break;
@@ -204,7 +223,18 @@ void chooseTemplateBoard(String board) {
       case NewRelay4:
         addRelay(3, gpio);
         break;
-
+      case NewRelay5:
+        addRelay(4, gpio);
+        break;
+      case NewRelay6:
+        addRelay(5, gpio);
+        break;
+      case NewRelay7:
+        addRelay(6, gpio);
+        break;
+      case NewRelay8:
+        addRelay(7, gpio);
+        break;
       case NewRelay1i:
         addRelay(0, gpio, LOW);
         break;
@@ -217,7 +247,18 @@ void chooseTemplateBoard(String board) {
       case NewRelay4i:
         addRelay(3, gpio, LOW);
         break;
-
+      case NewRelay5i:
+        addRelay(4, gpio, LOW);
+        break;
+      case NewRelay6i:
+        addRelay(5, gpio, LOW);
+        break;
+      case NewRelay7i:
+        addRelay(6, gpio, LOW);
+        break;
+      case NewRelay8i:
+        addRelay(7, gpio, LOW);
+        break;
       case NewSwitch1:
         if (ConfigESP->getGpio(0, FUNCTION_BUTTON) != OFF_GPIO) {
           ConfigESP->clearGpio(ConfigESP->getGpio(0, FUNCTION_BUTTON), FUNCTION_BUTTON);
@@ -408,6 +449,15 @@ void chooseTemplateBoard(String board) {
         ConfigESP->setGpio(gpio, FUNCTION_NTC_10K);
         break;
 
+      case NewEthPOWER:
+        break;
+
+      case NewEthMDC:
+        break;
+
+      case NewEthMDIO:
+        break;
+
       case NewSI7021:
         ConfigESP->setGpio(gpio, FUNCTION_SI7021_SONOFF);
         break;
@@ -450,14 +500,32 @@ void chooseTemplateBoard(String board) {
     addExpander(EXPENDER_MCP23017, root["MCP23017"]);
   }
 
+  if (root["MCP23017_I2C2"].success()) {
+    addExpander(EXPENDER_MCP23017_I2C2, root["MCP23017_I2C2"]);
+  }
+
   if (root["PCF8575"].success()) {
     addExpander(EXPENDER_PCF8575, root["PCF8575"]);
+  }
+
+  if (root["PCF8575"].success()) {
+    addExpander(EXPENDER_PCF8575_I2C2, root["PCF8575_I2C2"]);
   }
 
   if (root["PCF8574"].success()) {
     addExpander(EXPENDER_PCF8574, root["PCF8574"]);
   }
 #endif
+
+  JsonArray& numberButtons = root["BTN"];
+  for (size_t i = 0; i < numberButtons.size(); i++) {
+    int nr = numberButtons[i];
+    nr--;
+
+    if (nr >= 0) {
+      ConfigESP->setNumberButton(nr);
+    }
+  }
 }
 
 int convert(int gpioJSON) {
@@ -648,7 +716,7 @@ void addButton(uint8_t nr, uint8_t gpio, uint8_t event, JsonArray& buttonAction,
   if (buttonAction[nr].success())
     ConfigESP->setAction(gpio, (int)buttonAction[nr]);
   else
-    ConfigESP->setAction(gpio, Supla::Action::TOGGLE);
+    ConfigESP->setAction(gpio, Supla::GUI::Action::TOGGLE);
 
   ConfigESP->setEvent(gpio, event);
   ConfigESP->setPullUp(gpio, pullUp);
@@ -658,7 +726,7 @@ void addButton(uint8_t nr, uint8_t gpio, uint8_t event, JsonArray& buttonAction,
     addButtonCFG(gpio);
   ConfigESP->setGpio(gpio, nr, FUNCTION_BUTTON);
 
-  ConfigManager->setElement(KEY_NUMBER_BUTTON, nr, nr);
+  ConfigESP->setNumberButton(nr);
   ConfigManager->set(KEY_MAX_BUTTON, maxButton + 1);
 }
 
@@ -668,10 +736,10 @@ void addButtonAnalog(uint8_t nr, uint8_t gpio, JsonArray& buttonAction) {
   if (buttonAction[nr].success())
     ConfigESP->setAction(gpio, (int)buttonAction[nr]);
   else
-    ConfigESP->setAction(gpio, Supla::Action::TOGGLE);
+    ConfigESP->setAction(gpio, Supla::GUI::Action::TOGGLE);
 
-  ConfigESP->setEvent(gpio, Supla::Event::ON_PRESS);
-  ConfigManager->setElement(KEY_NUMBER_BUTTON, nr, nr);
+  ConfigESP->setEvent(gpio, Supla::GUI::Event::ON_PRESS);
+  ConfigESP->setNumberButton(nr);
   ConfigManager->set(KEY_MAX_BUTTON, maxButton + 1);
 }
 
@@ -714,6 +782,7 @@ void addLimitSwitch(uint8_t nr, uint8_t gpio) {
   uint8_t max = ConfigManager->get(KEY_MAX_LIMIT_SWITCH)->getValueInt();
 
   ConfigESP->setGpio(gpio, nr, FUNCTION_LIMIT_SWITCH);
+  ConfigESP->setPullUp(gpio, HIGH);
   ConfigManager->set(KEY_MAX_LIMIT_SWITCH, max + 1);
 }
 
@@ -789,22 +858,26 @@ void addExpander(uint8_t typeExpander, JsonArray& expander) {
 
     if (typeExpander == EXPENDER_MCP23017) {
       sizeExpander = 16;
-      ConfigManager->setElement(KEY_ACTIVE_SENSOR, SENSOR_I2C_MCP23017, true);
       ConfigManager->setElement(KEY_ACTIVE_EXPENDER, function, EXPENDER_MCP23017);
+    }
+    else if (typeExpander == EXPENDER_MCP23017_I2C2) {
+      sizeExpander = 16;
+      ConfigManager->setElement(KEY_ACTIVE_EXPENDER, function, EXPENDER_MCP23017_I2C2);
     }
     else if (typeExpander == EXPENDER_PCF8575) {
       sizeExpander = 16;
-      ConfigManager->setElement(KEY_ACTIVE_SENSOR, SENSOR_I2C_PCF857X, true);
       ConfigManager->setElement(KEY_ACTIVE_EXPENDER, function, EXPENDER_PCF8575);
+    }
+    else if (typeExpander == EXPENDER_PCF8575_I2C2) {
+      sizeExpander = 16;
+      ConfigManager->setElement(KEY_ACTIVE_EXPENDER, function, EXPENDER_PCF8575_I2C2);
     }
     else if (typeExpander == EXPENDER_PCF8574) {
       sizeExpander = 8;
-      ConfigManager->setElement(KEY_ACTIVE_SENSOR, SENSOR_I2C_PCF857X, true);
       ConfigManager->setElement(KEY_ACTIVE_EXPENDER, function, EXPENDER_PCF8574);
     }
-    else {
-      ConfigManager->setElement(KEY_ACTIVE_SENSOR, SENSOR_I2C_PCF857X, false);
-      ConfigManager->setElement(KEY_ACTIVE_EXPENDER, function, false);
+    else if (typeExpander == EXPENDER_PCF8574_I2C2) {
+      ConfigManager->setElement(KEY_ACTIVE_EXPENDER, function, EXPENDER_PCF8574_I2C2);
     }
 
     for (size_t ii = 1; ii <= sizeExpander; ii++) {
@@ -814,7 +887,8 @@ void addExpander(uint8_t typeExpander, JsonArray& expander) {
         if (gpio != 17)
           gpio = gpio - 1;
 
-        ConfigESP->setGpioMCP23017(gpio, address, ConfigManager->get(key)->getValueInt(), function);
+        uint8_t nr = ConfigManager->get(key)->getValueInt();
+        Expander->setGpioExpander(gpio, address, nr, function);
 
         switch (function) {
           case FUNCTION_RELAY:
@@ -822,10 +896,11 @@ void addExpander(uint8_t typeExpander, JsonArray& expander) {
             ConfigESP->setMemory(gpio, MEMORY_RESTORE);
             break;
           case FUNCTION_BUTTON:
-            ConfigESP->setAction(gpio, Supla::Action::TOGGLE);
-            ConfigESP->setEvent(gpio, Supla::Event::ON_CHANGE);
+            ConfigESP->setAction(gpio, Supla::GUI::Action::TOGGLE);
+            ConfigESP->setEvent(gpio, Supla::GUI::Event::ON_CHANGE);
             ConfigESP->setPullUp(gpio, true);
             ConfigESP->setInversed(gpio, true);
+            ConfigESP->setNumberButton(nr);
             break;
         }
         ConfigManager->set(key, ConfigManager->get(key)->getValueInt() + 1);

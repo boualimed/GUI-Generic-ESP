@@ -62,16 +62,18 @@ channels:
 #include <supla/channel_element.h>
 #include <supla/parser/parser.h>
 #include <supla/sensor/electricity_meter_parsed.h>
+#include <supla/sensor/sensor_parsed.h>
 #include <supla/source/source.h>
 #include <supla/storage/config.h>
 #include <yaml-cpp/yaml.h>
+#include <supla/storage/key_value.h>
 
 #include <map>
 #include <string>
 
 namespace Supla {
 
-class LinuxYamlConfig : public Config {
+class LinuxYamlConfig : public KeyValue {
  public:
   explicit LinuxYamlConfig(const std::string& file);
   virtual ~LinuxYamlConfig();
@@ -82,29 +84,14 @@ class LinuxYamlConfig : public Config {
   bool loadChannels();
 
   bool init() override;
-  void removeAll() override;
 
   bool generateGuidAndAuthkey() override;
   bool isConfigModeSupported() override;
 
   // Generic getters and setters
-  bool setString(const char* key, const char* value) override;
-  bool getString(const char* key, char* value, size_t maxSize) override;
-  int getStringSize(const char* key) override;
-
-  bool setBlob(const char* key, const char* value, size_t blobSize) override;
-  bool getBlob(const char* key, char* value, size_t blobSize) override;
-  int getBlobSize(const char* key) override;
-
-  bool getInt8(const char* key, int8_t* result) override;
+  // getUInt8 may be read from yaml or from KeyValue storage, so we override
+  // this method. It may be extended to other parameters in future (if needed).
   bool getUInt8(const char* key, uint8_t* result) override;
-  bool getInt32(const char* key, int32_t* result) override;
-  bool getUInt32(const char* key, uint32_t* result) override;
-
-  bool setInt8(const char* key, const int8_t value) override;
-  bool setUInt8(const char* key, const uint8_t value) override;
-  bool setInt32(const char* key, const int32_t value) override;
-  bool setUInt32(const char* key, const uint32_t value) override;
 
   void commit() override;
 
@@ -128,6 +115,8 @@ class LinuxYamlConfig : public Config {
   int32_t getSuplaServerPort() override;
   bool getEmail(char* result) override;
 
+  int getProtoVersion();
+
   std::string getStateFilesPath();
 
  protected:
@@ -137,7 +126,11 @@ class LinuxYamlConfig : public Config {
   Supla::Source::Source* addSource(const YAML::Node& ch);
 
   bool addVirtualRelay(const YAML::Node& ch, int channelNumber);
+  bool addCmdRelay(const YAML::Node& ch, int channelNumber,
+      Supla::Parser::Parser*);
   bool addFronius(const YAML::Node& ch, int channelNumber);
+  bool addAfore(const YAML::Node& ch, int channelNumber);
+  bool addHvac(const YAML::Node& ch, int channelNumber);
   bool addThermometerParsed(const YAML::Node& ch,
                             int channelNumber,
                             Supla::Parser::Parser* parser);
@@ -150,8 +143,48 @@ class LinuxYamlConfig : public Config {
   bool addBinaryParsed(const YAML::Node& ch,
                        int channelNumber,
                        Supla::Parser::Parser* parser);
+  bool addThermHygroMeterParsed(const YAML::Node& ch,
+                            int channelNumber,
+                            Supla::Parser::Parser* parser);
+  bool addHumidityParsed(const YAML::Node& ch,
+                            int channelNumber,
+                            Supla::Parser::Parser* parser);
+  bool addPressureParsed(const YAML::Node& ch,
+                            int channelNumber,
+                            Supla::Parser::Parser* parser);
+  bool addRainParsed(const YAML::Node& ch,
+                            int channelNumber,
+                            Supla::Parser::Parser* parser);
+  bool addWindParsed(const YAML::Node& ch,
+                            int channelNumber,
+                            Supla::Parser::Parser* parser);
+  bool addWeightParsed(const YAML::Node& ch,
+                            int channelNumber,
+                            Supla::Parser::Parser* parser);
+  bool addDistanceParsed(const YAML::Node& ch,
+                            int channelNumber,
+                            Supla::Parser::Parser* parser);
+  void addCommonParameters(const YAML::Node& ch,
+                            Supla::Sensor::SensorParsedBase* sensor,
+                            int *paramCount,
+                            Supla::Parser::Parser* parser);
   void loadGuidAuthFromPath(const std::string& path);
   bool saveGuidAuth(const std::string& path);
+  bool addStateParser(const YAML::Node& ch,
+                      Supla::Sensor::SensorParsedBase* sensor,
+                      Supla::Parser::Parser* parser,
+                      bool mandatory);
+  bool addActionTriggerActions(const YAML::Node& ch,
+                      Supla::Sensor::SensorParsedBase *sensor,
+                      bool mandatory);
+  bool addActionTriggerParsed(const YAML::Node& ch,
+                      int channnelNumber);
+  bool addGeneralPurposeMeasurementParsed(const YAML::Node& ch,
+                      int channelNumber,
+                      Supla::Parser::Parser* parser);
+  bool addGeneralPurposeMeterParsed(const YAML::Node& ch,
+                      int channelNumber,
+                      Supla::Parser::Parser* parser);
 
   std::string file;
   YAML::Node config;
@@ -168,6 +201,8 @@ class LinuxYamlConfig : public Config {
   int paramCount = 0;
   int parserCount = 0;
   int sourceCount = 0;
+
+  bool initDone = false;
 };
 };  // namespace Supla
 

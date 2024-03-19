@@ -13,23 +13,42 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
-
+#if defined(SUPLA_MODBUS_SDM) || defined(SUPLA_MODBUS_SDM_ONE_PHASE)
 #include "SDM_ReadValues.h"
 
 namespace Supla {
 namespace Sensor {
 
 #if defined(ESP8266)
-ReadValuesSDM::ReadValuesSDM(int8_t pinRX, int8_t pinTX, long baud) : sdm(swSerSDM, baud, NOT_A_PIN, SWSERIAL_8N1, pinRX, pinTX) {
+ReadValuesSDM::ReadValuesSDM(int8_t pinRX, int8_t pinTX, long baud)
+    : swSerSDM(pinRX, pinTX), sdm(swSerSDM, baud, NOT_A_PIN, SWSERIAL_8N1, pinRX, pinTX) {
   sdm.begin();
-  // sdm.setMsTurnaround(100);
-  // sdm.setMsTimeout(250);
 }
 #else
 ReadValuesSDM::ReadValuesSDM(HardwareSerial& serial, int8_t pinRX, int8_t pinTX, long baud) : sdm(serial, baud, NOT_A_PIN, SERIAL_8N1, pinRX, pinTX) {
   sdm.begin();
 }
 #endif
+
+// energy 1 == 0.00001 kWh - one phase
+float ReadValuesSDM::getFwdActEnergy() {
+  return sdmRead(SDM_IMPORT_ACTIVE_ENERGY);
+}
+
+// energy 1 == 0.00001 kWh - one phase
+float ReadValuesSDM::getRvrActEnergy() {
+  return sdmRead(SDM_EXPORT_ACTIVE_ENERGY);
+}
+
+// energy 1 == 0.00001 kWh - one phase
+float ReadValuesSDM::getFwdReactEnergy() {
+  return sdmRead(SDM_IMPORT_REACTIVE_ENERGY);
+}
+
+// energy 1 == 0.00001 kWh - one phase
+float ReadValuesSDM::getRvrReactEnergy() {
+  return sdmRead(SDM_EXPORT_REACTIVE_ENERGY);
+}
 
 // energy 1 == 0.00001 kWh
 float ReadValuesSDM::getFwdActEnergy(int phase) {
@@ -259,9 +278,8 @@ float ReadValuesSDM::sdmRead(uint16_t reg) {
   float tmpval = NAN;
 
   tmpval = sdm.readVal(reg);
-
-  if (isnan(tmpval))
-    tmpval = 0.0f;
+  // if (isnan(tmpval))
+  //   tmpval = 0.0f;
 
   return tmpval;
   // uint8_t retry_count = 3;
@@ -283,5 +301,30 @@ float ReadValuesSDM::sdmRead(uint16_t reg) {
   // return tmpval;
 }
 
+uint16_t ReadValuesSDM::getErrCode(bool _clear) {
+  return sdm.getErrCode(_clear);
+}
+
+uint32_t ReadValuesSDM::getErrCount(bool _clear) {
+  return sdm.getErrCount(_clear);
+}
+
+uint32_t ReadValuesSDM::getSuccCount(bool _clear) {
+  return sdm.getSuccCount(_clear);
+}
+
+void ReadValuesSDM::clearErrCode() {
+  sdm.clearErrCode();
+}
+
+void ReadValuesSDM::clearErrCount() {
+  sdm.clearErrCount();
+}
+
+void ReadValuesSDM::clearSuccCount() {
+  sdm.clearSuccCount();
+}
+
 };  // namespace Sensor
 };  // namespace Supla
+#endif

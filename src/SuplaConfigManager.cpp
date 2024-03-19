@@ -24,6 +24,13 @@
 #include "SuplaConfigManager.h"
 #include "SuplaDeviceGUI.h"
 
+#define CONFIG_MAX_SIZE 1024  // Change this to your desired max size
+
+namespace Supla {
+const char ConfigFileName[] = "/supla-dev.cfg";
+const char CustomCAFileName[] = "/custom_ca.pem";
+};  // namespace Supla
+
 ConfigOption::ConfigOption(uint8_t key, const char *value, int maxLength, bool loadKey)
     : _key(key), _value(nullptr), _maxLength(maxLength), _loadKey(loadKey) {
   if (maxLength > 0) {
@@ -51,22 +58,24 @@ int ConfigOption::getValueInt() {
   return atoi(this->getValue());
 }
 
+float ConfigOption::getValueFloat() {
+  return atof(this->getValue());
+}
+
 bool ConfigOption::getValueBool() {
   return atoi(this->getValue());
 }
 
-const char *ConfigOption::getValueHex(size_t size) {
-  char *buffer = (char *)malloc(sizeof(char) * (size * 2));
+void ConfigOption::getValueHex(char *buffer, size_t bufferSize) {
   size_t a, b;
 
   buffer[0] = 0;
   b = 0;
 
-  for (a = 0; a < size; a++) {
+  for (a = 0; a < sizeof(_value) && b + 2 < bufferSize; a++) {
     snprintf(&buffer[b], 3, "%02X", (unsigned char)_value[a]);  // NOLINT
     b += 2;
   }
-  return buffer;
 }
 
 int ConfigOption::getValueElement(int element) {
@@ -159,8 +168,17 @@ void ConfigOption::setValue(const char *value) {
 // class SuplaConfigManager
 //
 SuplaConfigManager::SuplaConfigManager() {
+  Supla::Storage::SetConfigInstance(this);
+
   if (SPIFFSbegin()) {
     _optionCount = OPTION_COUNT;
+
+    // Serial.println("SPIFFS all file:");
+    // Dir dir = SPIFFS.openDir("");
+    // while (dir.next()) {
+    //   Serial.println(dir.fileName());
+    //   Serial.println(dir.fileSize());
+    // }
 
     this->addKey(KEY_SUPLA_GUID, SUPLA_GUID_SIZE);
     this->addKey(KEY_SUPLA_AUTHKEY, SUPLA_AUTHKEY_SIZE);
@@ -173,8 +191,8 @@ SuplaConfigManager::SuplaConfigManager() {
     this->addKey(KEY_SUPLA_EMAIL, DEFAULT_EMAIL, MAX_EMAIL);
 
     this->addKey(KEY_CFG_MODE, 2);
-    this->addKey(KEY_ENABLE_GUI, "1", 1);
-    this->addKey(KEY_ENABLE_SSL, "0", 1);
+    this->addKey(KEY_ENABLE_GUI, 1);
+    this->addKey(KEY_ENABLE_SSL, 1);
 
     this->addKey(KEY_BOARD, 2);
 
@@ -194,19 +212,10 @@ SuplaConfigManager::SuplaConfigManager() {
 
 #ifdef SUPLA_RELAY
     this->addKey(KEY_MAX_RELAY, "1", 2);
-    this->addKey(KEY_CONDITIONS_SENSOR_TYPE, MAX_GPIO * 2);
-    this->addKey(KEY_CONDITIONS_TYPE, MAX_GPIO * 1);
-    this->addKey(KEY_CONDITIONS_MIN, MAX_GPIO * 4);
-    this->addKey(KEY_CONDITIONS_MAX, MAX_GPIO * 4);
     this->addKey(KEY_VIRTUAL_RELAY, MAX_VIRTUAL_RELAY * 2);
     this->addKey(KEY_VIRTUAL_RELAY_MEMORY, MAX_VIRTUAL_RELAY * 2);
-
 #else
     this->addKey(KEY_MAX_RELAY, 2, false);
-    this->addKey(KEY_CONDITIONS_SENSOR_TYPE, MAX_GPIO * 2, false);
-    this->addKey(KEY_CONDITIONS_TYPE, MAX_GPIO * 1, false);
-    this->addKey(KEY_CONDITIONS_MIN, MAX_GPIO * 4, false);
-    this->addKey(KEY_CONDITIONS_MAX, MAX_GPIO * 4, false);
     this->addKey(KEY_VIRTUAL_RELAY, MAX_GPIO * 2, false);
     this->addKey(KEY_VIRTUAL_RELAY_MEMORY, MAX_GPIO * 2, false);
 
@@ -217,12 +226,20 @@ SuplaConfigManager::SuplaConfigManager() {
     this->addKey(KEY_CONDITIONS_TYPE, MAX_GPIO * 1);
     this->addKey(KEY_CONDITIONS_MIN, MAX_GPIO * 4);
     this->addKey(KEY_CONDITIONS_MAX, MAX_GPIO * 4);
+    this->addKey(KEY_CONDITIONS_SENSOR_NUMBER, "0", MAX_GPIO * 3);
+    this->addKey(KEY_CONDITIONS_CLIENT_TYPE, MAX_GPIO * 2);
+    this->addKey(KEY_CONDITIONS_CLIENT_TYPE_NUMBER, "0", MAX_GPIO * 3);
+    this->addKey(KEY_MAX_CONDITIONS, "1", 2);
 
 #else
     this->addKey(KEY_CONDITIONS_SENSOR_TYPE, MAX_GPIO * 2, false);
     this->addKey(KEY_CONDITIONS_TYPE, MAX_GPIO * 1, false);
     this->addKey(KEY_CONDITIONS_MIN, MAX_GPIO * 4, false);
     this->addKey(KEY_CONDITIONS_MAX, MAX_GPIO * 4, false);
+    this->addKey(KEY_CONDITIONS_SENSOR_NUMBER, MAX_GPIO * 3, false);
+    this->addKey(KEY_CONDITIONS_CLIENT_TYPE, MAX_GPIO * 2, false);
+    this->addKey(KEY_CONDITIONS_CLIENT_TYPE_NUMBER, "0", MAX_GPIO * 3, false);
+    this->addKey(KEY_MAX_CONDITIONS, "1", 2, false);
 #endif
 
 #ifdef SUPLA_BUTTON
@@ -230,13 +247,18 @@ SuplaConfigManager::SuplaConfigManager() {
     this->addKey(KEY_ANALOG_BUTTON, 2 * MAX_ANALOG_BUTTON);
     this->addKey(KEY_ANALOG_INPUT_EXPECTED, 5 * MAX_ANALOG_BUTTON);
     this->addKey(KEY_NUMBER_BUTTON, MAX_GPIO * 2);
-    this->addKey(KEY_AT_HOLD_TIME, "0.45", 4);
+    this->addKey(KEY_AT_HOLD_TIME, DEFAULT_AT_HOLD_TIME, 4);
+    this->addKey(KEY_AT_MULTICLICK_TIME, DEFAULT_AT_MULTICLICK_TIME, 4);
+
+    this->addKey(KEY_NUMBER_BUTTON_ADDITIONAL, 36);
 #else
     this->addKey(KEY_MAX_BUTTON, 2, false);
     this->addKey(KEY_ANALOG_BUTTON, 2 * MAX_ANALOG_BUTTON, false);
     this->addKey(KEY_ANALOG_INPUT_EXPECTED, 5 * MAX_ANALOG_BUTTON, false);
     this->addKey(KEY_NUMBER_BUTTON, MAX_GPIO * 2, false);
-    this->addKey(KEY_AT_HOLD_TIME, "0.45", 4, false);
+    this->addKey(KEY_AT_HOLD_TIME, 4, false);
+    this->addKey(KEY_AT_MULTICLICK_TIME, 4, false);
+    this->addKey(KEY_NUMBER_BUTTON_ADDITIONAL, 36, false);
 #endif
 
 #ifdef SUPLA_LIMIT_SWITCH
@@ -308,8 +330,8 @@ SuplaConfigManager::SuplaConfigManager() {
 #endif
 
 #ifdef SUPLA_PUSHOVER
-    this->addKey(KEY_PUSHOVER_TOKEN, "0", MAX_TOKEN_SIZE);
-    this->addKey(KEY_PUSHOVER_USER, "0", MAX_USER_SIZE);
+    this->addKey(KEY_PUSHOVER_TOKEN, MAX_TOKEN_SIZE);
+    this->addKey(KEY_PUSHOVER_USER, MAX_USER_SIZE);
     this->addKey(KEY_PUSHOVER_MASSAGE, MAX_MESSAGE_SIZE * MAX_PUSHOVER_MESSAGE);
     this->addKey(KEY_PUSHOVER_SOUND, 3 * MAX_PUSHOVER_MESSAGE);
 #else
@@ -333,18 +355,30 @@ SuplaConfigManager::SuplaConfigManager() {
     this->addKey(KEY_DIRECT_LINKS_OFF, MAX_DIRECT_LINK * MAX_DIRECT_LINKS_SIZE, false);
 #endif
 
-#if defined(GUI_SENSOR_SPI) || defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_1WIRE) || defined(GUI_SENSOR_OTHER)
-    this->addKey(KEY_CORRECTION_TEMP, 6 * MAX_DS18B20);
-    this->addKey(KEY_CORRECTION_HUMIDITY, 6 * MAX_DS18B20);
-#else
+    // #if defined(GUI_SENSOR_SPI) || defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_1WIRE) || defined(GUI_SENSOR_OTHER)
+    //     this->addKey(KEY_CORRECTION_TEMP, 6 * MAX_DS18B20);
+    //     this->addKey(KEY_CORRECTION_HUMIDITY, 6 * MAX_DS18B20);
+    // #else
     this->addKey(KEY_CORRECTION_TEMP, 6 * MAX_DS18B20, false);
     this->addKey(KEY_CORRECTION_HUMIDITY, 6 * MAX_DS18B20, false);
-#endif
+    // #endif
 
 #if defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_SPI)
     this->addKey(KEY_ACTIVE_SENSOR, 16);
 #else
     this->addKey(KEY_ACTIVE_SENSOR, 16, false);
+#endif
+
+#if defined(GUI_SENSOR_I2C_2) || defined(GUI_SENSOR_SPI)
+    this->addKey(KEY_ACTIVE_SENSOR_2, 96);
+#else
+    this->addKey(KEY_ACTIVE_SENSOR_2, 96, false);
+#endif
+
+#if defined(SUPLA_MS5611)
+    this->addKey(KEY_ALTITUDE_MS5611, "0", 4);
+#else
+    this->addKey(KEY_ALTITUDE_MS5611, 4, false);
 #endif
 
 #ifdef SUPLA_DEEP_SLEEP
@@ -357,12 +391,6 @@ SuplaConfigManager::SuplaConfigManager() {
     this->addKey(KEY_HD44780_TYPE, "2", 1);
 #else
     this->addKey(KEY_HD44780_TYPE, 1, false);
-#endif
-
-#ifdef SUPLA_CONDITIONS
-    this->addKey(KEY_CONDITIONS_SENSOR_NUMBER, "0", MAX_GPIO * 3);
-#else
-    this->addKey(KEY_CONDITIONS_SENSOR_NUMBER, MAX_GPIO * 3, false);
 #endif
 
 #ifdef SUPLA_RF_BRIDGE
@@ -383,13 +411,7 @@ SuplaConfigManager::SuplaConfigManager() {
     this->addKey(KEY_RF_BRIDGE_REPEAT, MAX_BRIDGE_RF * 2, false);
 #endif
 
-#ifdef SUPLA_ACTION_TRIGGER
-    this->addKey(KEY_AT_MULTICLICK_TIME, "0.45", 4);
-#else
-    this->addKey(KEY_AT_MULTICLICK_TIME, 4, false);
-#endif
-
-#ifdef SUPLA_ANALOG_READING_MAP
+#if defined(SUPLA_ANALOG_READING_KPOP)
     this->addKey(KEY_MAX_ANALOG_READING, "1", 2);
 #else
     this->addKey(KEY_MAX_ANALOG_READING, 2, false);
@@ -399,8 +421,10 @@ SuplaConfigManager::SuplaConfigManager() {
 
 #ifdef GUI_SENSOR_I2C_EXPENDER
     this->addKey(KEY_ACTIVE_EXPENDER, 20);
+    this->addKey(KEY_EXPANDER_NUMBER_BUTTON, 96);
 #else
     this->addKey(KEY_ACTIVE_EXPENDER, 20, false);
+    this->addKey(KEY_EXPANDER_NUMBER_BUTTON, 96, false);
 #endif
 
 #if defined(SUPLA_DIRECT_LINKS_SENSOR_THERMOMETR) || defined(SUPLA_DIRECT_LINKS_MULTI_SENSOR)
@@ -421,8 +445,34 @@ SuplaConfigManager::SuplaConfigManager() {
     this->addKey(KEY_WAKE_ON_LAN_MAX, 2, false);
     this->addKey(KEY_WAKE_ON_LAN_MAC, MAX_WAKE_ON_LAN * 18, false);
 #endif
-
     //  this->addKey(KEY_VERSION_CONFIG, String(CURENT_VERSION).c_str(), 2);
+
+#ifdef SUPLA_THERMOSTAT
+    this->addKey(KEY_THERMOSTAT_TYPE, 2 * MAX_THERMOSTAT);
+    this->addKey(KEY_THERMOSTAT_MAIN_THERMOMETER_CHANNEL, 3 * MAX_THERMOSTAT);
+    this->addKey(KEY_THERMOSTAT_AUX_THERMOMETER_CHANNEL, 3 * MAX_THERMOSTAT);
+    this->addKey(KEY_THERMOSTAT_HISTERESIS, 4 * MAX_THERMOSTAT);
+    this->addKey(KEY_THERMOSTAT_TEMPERATURE_MIN, 4 * MAX_THERMOSTAT);
+    this->addKey(KEY_THERMOSTAT_TEMPERATURE_MAX, 4 * MAX_THERMOSTAT);
+
+#else
+    this->addKey(KEY_THERMOSTAT_TYPE, 2 * MAX_THERMOSTAT, false);
+    this->addKey(KEY_THERMOSTAT_MAIN_THERMOMETER_CHANNEL, 3 * MAX_THERMOSTAT, false);
+    this->addKey(KEY_THERMOSTAT_AUX_THERMOMETER_CHANNEL, 3 * MAX_THERMOSTAT, false);
+    this->addKey(KEY_THERMOSTAT_HISTERESIS, 4 * MAX_THERMOSTAT, false);
+    this->addKey(KEY_THERMOSTAT_TEMPERATURE_MIN, 4 * MAX_THERMOSTAT, false);
+    this->addKey(KEY_THERMOSTAT_TEMPERATURE_MAX, 4 * MAX_THERMOSTAT, false);
+#endif
+
+#ifdef SUPLA_CC1101
+    this->addKey(KEY_WMBUS_SENSOR, 30);
+    this->addKey(KEY_WMBUS_SENSOR_ID, 100);
+    this->addKey(KEY_WMBUS_SENSOR_KEY, 200);
+#else
+    this->addKey(KEY_WMBUS_SENSOR, 30, false);
+    this->addKey(KEY_WMBUS_SENSOR_ID, 100, false);
+    this->addKey(KEY_WMBUS_SENSOR_KEY, 200, false);
+#endif
 
     SPIFFS.end();
     switch (this->load()) {
@@ -715,7 +765,7 @@ bool SuplaConfigManager::isDeviceConfigured() {
   return strcmp(this->get(KEY_SUPLA_GUID)->getValue(), "") == 0 || strcmp(this->get(KEY_SUPLA_AUTHKEY)->getValue(), "") == 0 ||
          strcmp(this->get(KEY_LOGIN)->getValue(), "") == 0 || strcmp(this->get(KEY_ENABLE_SSL)->getValue(), "") == 0 ||
          strcmp(this->get(KEY_ENABLE_GUI)->getValue(), "") == 0 || strcmp(this->get(KEY_SUPLA_SERVER)->getValue(), DEFAULT_SERVER) == 0 ||
-         strcmp(this->get(KEY_SUPLA_EMAIL)->getValue(), DEFAULT_EMAIL) == 0 || ConfigESP->getGpio(FUNCTION_CFG_BUTTON) == OFF_GPIO;
+         strcmp(this->get(KEY_SUPLA_EMAIL)->getValue(), DEFAULT_EMAIL) == 0;
 }
 
 ConfigOption *SuplaConfigManager::get(uint8_t key) {
@@ -743,20 +793,21 @@ bool SuplaConfigManager::set(uint8_t key, const char *value) {
 }
 
 bool SuplaConfigManager::setElement(uint8_t key, int index, int newvalue) {
-  for (int i = 0; i < _optionCount; i++) {
-    if (key == _options[i]->getKey()) {
-      String data = _options[i]->replaceElement(index, newvalue);
-      _options[i]->setValue(data.c_str());
-      return true;
-    }
-  }
-  return false;
+  return setElementInternal(key, index, String(newvalue));
 }
 
-bool SuplaConfigManager::setElement(uint8_t key, int index, const char *newvalue) {
+bool SuplaConfigManager::setElement(uint8_t key, int index, double newvalue) {
+  return setElementInternal(key, index, String(newvalue));
+}
+
+bool SuplaConfigManager::setElement(uint8_t key, int index, const String &newvalue) {
+  return setElementInternal(key, index, newvalue);
+}
+
+bool SuplaConfigManager::setElementInternal(uint8_t key, int index, const String &newvalue) {
   for (int i = 0; i < _optionCount; i++) {
     if (key == _options[i]->getKey()) {
-      String data = _options[i]->replaceElement(index, newvalue);
+      String data = _options[i]->replaceElement(index, newvalue.c_str());
       _options[i]->setValue(data.c_str());
       return true;
     }
@@ -782,12 +833,221 @@ void SuplaConfigManager::setGUIDandAUTHKEY() {
   this->set(KEY_SUPLA_GUID, GUID);
   this->set(KEY_SUPLA_AUTHKEY, AUTHKEY);
 
-  String GUID_S = ConfigManager->get(KEY_SUPLA_GUID)->getValueHex(SUPLA_GUID_SIZE);
-  String AUTHKEY_S = ConfigManager->get(KEY_SUPLA_AUTHKEY)->getValueHex(SUPLA_AUTHKEY_SIZE);
-  GUID_S.reserve(32);
-  AUTHKEY_S.reserve(32);
+  const size_t GUID_SIZE = SUPLA_GUID_SIZE;
+  const size_t AUTHKEY_SIZE = SUPLA_AUTHKEY_SIZE;
 
-  if (GUID_S.endsWith("0") || AUTHKEY_S.endsWith("0")) {
+  char guidBuffer[GUID_SIZE + 1];
+  char authkeyBuffer[AUTHKEY_SIZE + 1];
+
+  strcpy(guidBuffer, ConfigManager->get(KEY_SUPLA_GUID)->getValue());
+  strcpy(authkeyBuffer, ConfigManager->get(KEY_SUPLA_AUTHKEY)->getValue());
+
+  if (guidBuffer[strlen(guidBuffer) - 1] == '0' || authkeyBuffer[strlen(authkeyBuffer) - 1] == '0') {
     setGUIDandAUTHKEY();
   }
+}
+
+bool SuplaConfigManager::init() {
+  if (SPIFFSbegin()) {
+    if (SPIFFS.exists(Supla::ConfigFileName)) {
+      File cfg = SPIFFS.open(Supla::ConfigFileName, "r");
+      if (!cfg) {
+        SUPLA_LOG_ERROR("SuplaConfigManager: failed to open config file");
+        SPIFFS.end();
+        return false;
+      }
+
+      int fileSize = cfg.size();
+
+      SUPLA_LOG_DEBUG("SuplaConfigManager: config file size %d", fileSize);
+      if (fileSize > CONFIG_MAX_SIZE) {
+        SUPLA_LOG_ERROR("SuplaConfigManager: config file is too big");
+        cfg.close();
+        SPIFFS.end();
+        return false;
+      }
+
+      uint8_t *buf = new uint8_t[CONFIG_MAX_SIZE];
+      if (buf == nullptr) {
+        SUPLA_LOG_ERROR("SuplaConfigManager: failed to allocate memory");
+        cfg.close();
+        SPIFFS.end();
+        return false;
+      }
+
+      memset(buf, 0, CONFIG_MAX_SIZE);
+      int bytesRead = cfg.read(buf, fileSize);
+
+      cfg.close();
+      SPIFFS.end();
+      if (bytesRead != fileSize) {
+        SUPLA_LOG_DEBUG("SuplaConfigManager: read bytes %d, while file is %d bytes", bytesRead, fileSize);
+        delete[] buf;
+        return false;
+      }
+
+      SUPLA_LOG_DEBUG("SuplaConfigManager: initializing storage from file...");
+      auto result = initFromMemory(buf, fileSize);
+      SUPLA_LOG_DEBUG("SuplaConfigManager: init result %d", result);
+      delete[] buf;
+      return result;
+    }
+    else {
+      SUPLA_LOG_DEBUG("SuplaConfigManager: config file missing");
+    }
+    SPIFFS.end();
+    return true;
+  }
+  return false;
+}
+
+void SuplaConfigManager::commit() {
+  uint8_t *buf = new uint8_t[CONFIG_MAX_SIZE];
+  if (buf == nullptr) {
+    SUPLA_LOG_ERROR("SuplaConfigManager: failed to allocate memory");
+    return;
+  }
+
+  memset(buf, 0, CONFIG_MAX_SIZE);
+
+  size_t dataSize = serializeToMemory(buf, CONFIG_MAX_SIZE);
+
+  if (!SPIFFSbegin()) {
+    return;
+  }
+
+  File cfg = SPIFFS.open(Supla::ConfigFileName, "w");
+  if (!cfg) {
+    SUPLA_LOG_ERROR("SuplaConfigManager: failed to open config file for write");
+    SPIFFS.end();
+    return;
+  }
+
+  cfg.write(buf, dataSize);
+  cfg.close();
+  delete[] buf;
+  SPIFFS.end();
+}
+
+void SuplaConfigManager::removeAll() {
+  SUPLA_LOG_DEBUG("SuplaConfigManager remove all called");
+
+  if (SPIFFSbegin()) {
+    SPIFFS.remove(Supla::CustomCAFileName);
+
+    File suplaDir = SPIFFS.open("/supla", "r");
+    if (suplaDir && suplaDir.isDirectory()) {
+      File file = suplaDir.openNextFile();
+      while (file) {
+        if (!file.isDirectory()) {
+          SUPLA_LOG_DEBUG("SuplaConfigManager: removing file /supla/%s", file.name());
+          char path[200] = {};
+          snprintf(path, sizeof(path), "/supla/%s", file.name());
+          file.close();
+          if (!SPIFFS.remove(path)) {
+            SUPLA_LOG_ERROR("SuplaConfigManager: failed to remove file");
+          }
+        }
+        file = suplaDir.openNextFile();
+      }
+    }
+    else {
+      SUPLA_LOG_DEBUG("SuplaConfigManager: failed to open supla directory");
+    }
+
+    SPIFFS.end();
+  }
+}
+
+bool SuplaConfigManager::setSuplaServer(const char *server) {
+  if (strlen(server) > SUPLA_SERVER_NAME_MAXSIZE - 1) {
+    return false;
+  }
+  return set(KEY_SUPLA_SERVER, server);
+}
+
+bool SuplaConfigManager::setEmail(const char *email) {
+  if (strlen(email) > SUPLA_EMAIL_MAXSIZE - 1) {
+    return false;
+  }
+  return set(KEY_SUPLA_EMAIL, email);
+}
+
+bool SuplaConfigManager::setAuthKey(const char *authkey) {
+  return set(KEY_SUPLA_AUTHKEY, authkey);
+}
+
+bool SuplaConfigManager::setGUID(const char *guid) {
+  return set(KEY_SUPLA_GUID, guid);
+}
+
+bool SuplaConfigManager::setDeviceName(const char *name) {
+  if (strlen(name) > SUPLA_DEVICE_NAME_MAXSIZE - 1) {
+    return false;
+  }
+  return set(KEY_HOST_NAME, name);
+}
+
+bool SuplaConfigManager::getSuplaServer(char *result) {
+  String server = ConfigManager->get(KEY_SUPLA_SERVER)->getValue();
+  int npos = server.indexOf(":");
+  if (npos != -1) {
+    server.remove(npos);  // Usuń wszystko od npos
+  }
+
+  strncpy(result, server.c_str(), SUPLA_SERVER_NAME_MAXSIZE);
+  return true;
+}
+
+bool SuplaConfigManager::getEmail(char *result) {
+  strncpy(result, ConfigManager->get(KEY_SUPLA_EMAIL)->getValue(), SUPLA_EMAIL_MAXSIZE);
+  return true;
+}
+
+bool SuplaConfigManager::getGUID(char *result) {
+  strncpy(result, ConfigManager->get(KEY_SUPLA_GUID)->getValue(), SUPLA_GUID_SIZE);
+  return true;
+}
+
+bool SuplaConfigManager::getAuthKey(char *result) {
+  strncpy(result, ConfigManager->get(KEY_SUPLA_AUTHKEY)->getValue(), SUPLA_AUTHKEY_SIZE);
+  return true;
+}
+
+bool SuplaConfigManager::getDeviceName(char *result) {
+  strncpy(result, ConfigManager->get(KEY_HOST_NAME)->getValue(), SUPLA_DEVICE_NAME_MAXSIZE);
+  return true;
+}
+
+bool SuplaConfigManager::setWiFiSSID(const char *ssid) {
+  if (strlen(ssid) > MAX_SSID_SIZE - 1) {
+    return false;
+  }
+  return set(KEY_WIFI_SSID, ssid);
+}
+
+bool SuplaConfigManager::setWiFiPassword(const char *password) {
+  if (strlen(password) > MAX_WIFI_PASSWORD_SIZE - 1) {
+    return false;
+  }
+  return set(KEY_WIFI_PASS, password);
+}
+
+bool SuplaConfigManager::getWiFiSSID(char *result) {
+  strncpy(result, ConfigManager->get(KEY_WIFI_SSID)->getValue(), MAX_SSID_SIZE);
+  return true;
+}
+
+bool SuplaConfigManager::getWiFiPassword(char *result) {
+  strncpy(result, ConfigManager->get(KEY_WIFI_PASS)->getValue(), MAX_WIFI_PASSWORD_SIZE);
+  return true;
+}
+
+bool SuplaConfigManager::getUInt8(const char *key, uint8_t *result) {
+  if (strcmp(key, "security_level") == 0) {
+    *result = 2;
+    return true;
+  }
+
+  return KeyValue::getUInt8(key, result);
 }

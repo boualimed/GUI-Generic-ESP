@@ -13,6 +13,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+#ifdef SUPLA_DIRECT_LINKS_MULTI_SENSOR
 
 #ifndef _direct_links_multi_h
 #define _direct_links_multi_h
@@ -23,6 +24,7 @@
 #include <supla/sensor/therm_hygro_meter.h>
 #include "pressure.h"
 #include <supla/sensor/one_phase_electricity_meter.h>
+#include <supla/sensor/electricity_meter.h>
 #include <supla/sensor/distance.h>
 
 namespace Supla {
@@ -71,6 +73,13 @@ class DirectLinksOnePhaseElectricityMeter : public DirectLinksConnect, public On
   void sendRequest();
 };
 
+class DirectLinksElectricityMeter : public DirectLinksConnect, public ElectricityMeter {
+ public:
+  DirectLinksElectricityMeter(const char *url, const char *host, bool isSecured = true);
+  void sendRequest();
+  void setPhaseData(int phaseIndex, JsonObject &phase);
+};
+
 class DirectLinksDistance : public DirectLinksConnect, public Supla::Sensor::Distance {
  public:
   DirectLinksDistance(const char *url, const char *host, bool isSecured = true);
@@ -96,4 +105,5 @@ class DirectLinksDepth : public DirectLinksConnect, public Supla::Sensor::Distan
 };  // namespace Sensor
 };  // namespace Supla
 
+#endif
 #endif

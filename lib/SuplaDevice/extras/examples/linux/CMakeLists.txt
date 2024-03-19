@@ -8,7 +8,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_BUILD_TYPE Debug)
 
-# SET( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+  set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+endif(CCACHE_FOUND)
+
+SET( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 # Current board sources
 set(BOARD_SRC
   main.cpp
@@ -16,6 +21,12 @@ set(BOARD_SRC
 
 link_libraries( "$<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:-lstdc++fs>" )
 # supladevice library target is used in porting/linux cmake
+
+if(NOT DEFINED ENV{SUPLA_DEVICE_PATH})
+  set(ENV{SUPLA_DEVICE_PATH} "../../../")
+  #  message(FATAL_ERROR "SUPLA_DEVICE_PATH env variable is not set")
+endif()
+
 add_library(supladevice "")
 add_subdirectory($ENV{SUPLA_DEVICE_PATH} supla-device)
 add_subdirectory($ENV{SUPLA_DEVICE_PATH}/extras/porting/linux supla-porting-linux)

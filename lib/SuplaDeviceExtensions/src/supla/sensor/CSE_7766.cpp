@@ -13,7 +13,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
-
+#ifdef SUPLA_CSE7766
 #include "CSE_7766.h"
 
 namespace Supla {
@@ -161,6 +161,7 @@ void CSE_7766::setPowerMultiplier(double value) {
 void CSE_7766::setCounter(_supla_int64_t value) {
   _energy = value;  // ------- energy value read from memory at startup
   energy = value;
+  sensor.resetEnergy(value);
   setFwdActEnergy(0, value);
 }
 
@@ -217,3 +218,4 @@ void CSE_7766::calibrate(double calibPower, double calibVoltage) {
 }
 };  // namespace Sensor
 };  // namespace Supla
+#endif

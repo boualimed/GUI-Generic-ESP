@@ -19,10 +19,9 @@
 
 #include "SuplaDeviceGUI.h"
 
-#ifdef SUPLA_PUSHOVER
-#define INPUT_PUSHOVER_MESSAGE "ipm"
-#define INPUT_PUSHOVER_SOUND   "ips"
-#endif
+#define INPUT_RELAY_LEVEL  "irl"
+#define INPUT_RELAY_MEMORY "irm"
+#define INPUT_LIGHT_RELAY  "ilr"
 
 #if defined(SUPLA_RELAY) || defined(GUI_SENSOR_I2C_EXPENDER)
 #define GUI_RELAY
@@ -36,8 +35,6 @@
 
 #define INPUT_MAX_RELAY      "mrl"
 #define INPUT_RELAY_GPIO     "rlg"
-#define INPUT_RELAY_LEVEL    "irl"
-#define INPUT_RELAY_MEMORY   "irm"
 #define INPUT_RELAY_DURATION "ird"
 #define INPUT_ROLLERSHUTTER  "irsr"
 
@@ -77,17 +74,6 @@ void handleRelaySaveSetMCP23017();
 #define INPUT_LEVEL_LED "ill"
 #endif
 
-#ifdef SUPLA_CONDITIONS
-#define INPUT_CONDITIONS_SENSOR_TYPE   "cst"
-#define INPUT_CONDITIONS_TYPE          "ct"
-#define INPUT_CONDITIONS_MIN           "cmi"
-#define INPUT_CONDITIONS_MAX           "cma"
-#define INPUT_CONDITIONS_SENSOR_NUMBER "csc"
-
-void conditionsWebPage(int nr);
-void conditionsWebPageSave(int nr);
-#endif
-
 #ifdef SUPLA_DIRECT_LINKS
 #define INPUT_DIRECT_LINK_ON  "dlo"
 #define INPUT_DIRECT_LINK_OFF "dlof"
@@ -107,6 +93,15 @@ void directLinksWebPageSave(int nr);
 
 // void directLinksWebPage(int nr);
 // void directLinksWebPageSave(int nr);
+#endif
+
+#ifdef SUPLA_THERMOSTAT
+#define INPUT_THERMOSTAT_TYPE                     "itt"
+#define INPUT_THERMOSTAT_MAIN_THERMOMETER_CHANNEL "itmtc"
+#define INPUT_THERMOSTAT_AUX_THERMOMETER_CHANNEL  "itatc"
+#define INPUT_THERMOSTAT_HISTERESIS               "ith"
+#define INPUT_THERMOSTAT_TEMPERATURE_MIN          "ittmin"
+#define INPUT_THERMOSTAT_TEMPERATURE_MAX          "ittmax"
 #endif
 
 #endif  // SuplaWebPageRelay_h

@@ -21,69 +21,106 @@
 
 #include <stdint.h>
 
-#define STORAGE_SECTION_TYPE_DEVICE_CONFIG  1
-#define STORAGE_SECTION_TYPE_ELEMENT_CONFIG 2
-#define STORAGE_SECTION_TYPE_ELEMENT_STATE  3
+#define SUPLA_STORAGE_VERSION 1
+
+#define STORAGE_SECTION_TYPE_DEVICE_CONFIG           1
+#define STORAGE_SECTION_TYPE_ELEMENT_CONFIG          2
+#define STORAGE_SECTION_TYPE_ELEMENT_STATE           3
+#define STORAGE_SECTION_TYPE_ELEMENT_STATE_WL_BYTE   4
+#define STORAGE_SECTION_TYPE_ELEMENT_STATE_WL_SECTOR 5
 
 namespace Supla {
 
 class Config;
+class SpecialSectionInfo;
+class StateStorageInterface;
 
 class Storage {
  public:
+  static bool storageInitDone;
+
+  enum class WearLevelingMode {
+    OFF = 0,
+    BYTE_WRITE_MODE = 1,   // Used i.e. for EEPROM memory
+    SECTOR_WRITE_MODE = 2  // Used i.e. for FLASH memory
+  };
+
+  friend class StateStorageInterface;
   static Storage *Instance();
   static Config *ConfigInstance();
-  static bool Init();
-  static bool ReadState(unsigned char *, int);
-  static bool WriteState(const unsigned char *, int);
-  static bool PrepareState(bool dryRun = false);
-  static bool FinalizeSaveState();
-  static bool SaveStateAllowed(uint64_t);
-  static void ScheduleSave(uint64_t delayMs);
   static void SetConfigInstance(Config *instance);
   static bool IsConfigStorageAvailable();
 
-  explicit Storage(unsigned int storageStartingOffset = 0);
+  static bool Init();
+  static bool SaveStateAllowed(uint32_t);
+  static void ScheduleSave(uint32_t delayMs);
+  static bool IsStateStorageValid();
+  static void LoadStateStorage();
+  static void WriteStateStorage();
+
+  static bool ReadState(unsigned char *, int);
+  static bool WriteState(const unsigned char *, int);
+
+  // Register special section in storage data (outside of State storage)
+  // sectionId - user selected sectionId
+  // offset - storage memory offset - absolute value. Please make sure that it
+  // doesn't overlap with other sections and state section
+  // size - amount of bytes reserved
+  // addCrc - tell if Storage class should add CRC at the end of section
+  // Actual size of section is size + 2 bytes for CRC (if enabled)
+  static bool RegisterSection(int sectionId, int offset, int size,
+      bool addCrc, bool addBackupCopy);
+  // Reads data section. Returns false when size doesn't match and when crc
+  // check failed (if enabled)
+  static bool ReadSection(int sectionId, unsigned char *data, int size);
+  // Writes data section. Returns false when size doesn't match with
+  // registration info
+  static bool WriteSection(int sectionId, const unsigned char *data, int size);
+  // Delete content of section
+  static bool DeleteSection(int sectionId);
+
+  explicit Storage(unsigned int storageStartingOffset = 0,
+                   unsigned int availableSize = 0,
+                   enum WearLevelingMode = WearLevelingMode::OFF);
   virtual ~Storage();
 
   // Changes default state save period time
-  virtual void setStateSavePeriod(uint64_t periodMs);
-
-  virtual bool init();
-  virtual bool readState(unsigned char *, int);
-  virtual bool writeState(const unsigned char *, int);
-
-  virtual bool prepareState(bool performDryRun);
-  virtual bool finalizeSaveState();
-  virtual bool saveStateAllowed(uint64_t);
-  virtual void scheduleSave(uint64_t delayMs);
-
-  virtual void commit() = 0;
+  virtual void setStateSavePeriod(uint32_t periodMs);
 
   virtual void deleteAll();
 
  protected:
-  virtual int readStorage(unsigned int, unsigned char *, int, bool = true) = 0;
-  virtual int writeStorage(unsigned int, const unsigned char *, int) = 0;
+  virtual bool init();
+  virtual int readStorage(unsigned int address,
+                          unsigned char *buf,
+                          int size,
+                          bool logs = true) = 0;
+  virtual int writeStorage(unsigned int address,
+                           const unsigned char *buf,
+                           int size) = 0;
+  virtual void eraseSector(unsigned int address, int size);
+  virtual void commit() = 0;
+
   virtual int updateStorage(unsigned int, const unsigned char *, int);
 
-  unsigned int storageStartingOffset;
-  unsigned int deviceConfigOffset;
-  unsigned int elementConfigOffset;
-  unsigned int elementStateOffset;
+  virtual bool saveStateAllowed(uint32_t);
+  virtual void scheduleSave(uint32_t delayMs);
 
-  unsigned int deviceConfigSize;
-  unsigned int elementConfigSize;
-  unsigned int elementStateSize;
+  bool registerSection(
+      int sectionId, int offset, int size, bool addCrc, bool addBackupCopy);
+  bool readSection(int sectionId, unsigned char *data, int size);
+  bool writeSection(int sectionId, const unsigned char *data, int size);
+  bool deleteSection(int sectionId);
 
-  unsigned int currentStateOffset;
+  const uint32_t storageStartingOffset = 0;
+  const uint32_t availableSize = 0;
+  const enum WearLevelingMode wearLevelingMode = WearLevelingMode::OFF;
 
-  unsigned int newSectionSize;
-  int sectionsCount;
-  bool dryRun;
+  uint32_t saveStatePeriod = 1000;
+  uint32_t lastWriteTimestamp = 0;
 
-  uint64_t saveStatePeriod;
-  uint64_t lastWriteTimestamp;
+  SpecialSectionInfo *firstSectionInfo = nullptr;
+  StateStorageInterface *stateStorage = nullptr;
 
   static Storage *instance;
   static Config *configInstance;
@@ -97,7 +134,7 @@ struct Preamble {
 };
 
 struct SectionPreamble {
-  unsigned char type;
+  uint8_t type;
   uint16_t size;
   uint16_t crc1;
   uint16_t crc2;

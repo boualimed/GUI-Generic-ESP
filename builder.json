@@ -1,5 +1,5 @@
 {
-	"version": "4.17.9",
+	"version": "6.0.1",
 	"Opis struktury": {
 		"SEKCJA": {
 			"SUPLA_OPTION": {
@@ -189,6 +189,48 @@
 				"name": "Protocole mDNS",
 				"desc": "L'utilisation du protocole mDNS permet de se connecter au module sans connaître son adresse IP, il suffit de saisir l'adresse du module http://supla.local"
 			}
+		},
+		"SUPLA_WAKE_ON_LAN": {
+			"name": "Wake on LAN",
+			"desc": "Włączanie komputerów poprzez sieć lokalną LAN.",
+			"defOn": false,
+			"en": {
+				"name": "Wake on LAN",
+				"desc": "Turning on computers via LAN."
+			},
+			"es": {
+				"name": "Wake on LAN",
+				"desc": "Encendido de computadoras a través de LAN."
+			},
+			"de": {
+				"name": "Wake on LAN",
+				"desc": "Einschalten von Computern über LAN."
+			},
+			"fr": {
+				"name": "Wake on LAN",
+				"desc": "Allumer les ordinateurs via LAN."
+			}
+		},
+		"SUPLA_WT32_ETH01_LAN8720": {
+			"name": "WT32-ETH01",
+			"desc": "WT32-ETH01 to wbudowany moduł szeregowo-ethernetowy oparty na jednostkach MCU WT32-S1 z serii ESP32.",
+			"defOn": false,
+			"en": {
+				"name": "WT32-ETH01",
+				"desc": ""
+			},
+			"es": {
+				"name": "WT32-ETH01",
+				"desc": ""
+			},
+			"de": {
+				"name": "WT32-ETH01",
+				"desc": ""
+			},
+			"fr": {
+				"name": "WT32-ETH01",
+				"desc": ""
+			}
 		}
 	},
 	"CONTROL": {
@@ -199,8 +241,7 @@
 			"depOn": [
 				"SUPLA_ROLLERSHUTTER",
 				"SUPLA_DIRECT_LINKS",
-				"SUPLA_LED",
-				"SUPLA_CONDITIONS"
+				"SUPLA_LED"
 			],
 			"en": {
 				"name": "Relays",
@@ -217,27 +258,6 @@
 			"fr": {
 				"name": "Relais",
 				"desc": "Paramètres de l´appareil->Relais. Il permet le fonctionnement des relais."
-			}
-		},
-		"SUPLA_CONDITIONS": {
-			"name": "Warunkowanie przekaźnika",
-			"desc": "Umożliwia sterowanie przekaźnikiem w zależnośći od wartości sensora.",
-			"defOn": false,
-			"en": {
-				"name": "Conditioning of relay",
-				"desc": "It allows you to control the relay depending on the sensor value."
-			},
-			"es": {
-				"name": "Acondicionamiento de relé",
-				"desc": "Le permite controlar el relé en función del valor del sensor."
-			},
-			"de": {
-				"name": "Konditionierung des Relais",
-				"desc": "Damit können Sie das Relais abhängig vom Sensorwert steuern."
-			},
-			"fr": {
-				"name": "Conditionnement de relais",
-				"desc": "Il permet de contrôler le relais en fonction de la valeur du capteur."
 			}
 		},
 		"SUPLA_BUTTON": {
@@ -293,6 +313,32 @@
 				"name": "Action Trigger"
 			}
 		},
+		"SUPLA_THERMOSTAT": {
+			"name": "Termostat",
+			"desc": "",
+			"defOn": false,
+			"new": true,
+			"depOpt": [
+				"SUPLA_RELAY",
+				"SUPLA_LED"
+			],
+			"en": {
+				"name": "Thermostat",
+				"desc": ""
+			},
+			"es": {
+				"name": "Termostato",
+				"desc": ""
+			},
+			"de": {
+				"name": "Thermostat",
+				"desc": ""
+			},
+			"fr": {
+				"name": "Thermostat",
+				"desc": ""
+			}
+		},
 		"SUPLA_ROLLERSHUTTER": {
 			"name": "Rolety",
 			"desc": "Ustawienia urządzenia->Rolety. Umożliwia obsługę rolet. Wymagana włączona obsługa przekaźników i przycisków.",
@@ -333,6 +379,27 @@
 			"fr": {
 				"name": "Interrupteurs de fin de course",
 				"desc": "Paramètres de l´appareil->Interrupteurs de fin de course. Permet le fonctionnement des interrupteurs de fin de course."
+			}
+		},
+		"SUPLA_CONDITIONS": {
+			"name": "Warunkowanie",
+			"desc": "Umożliwia sterowanie różnymi elementami (przekaźnikami, rgbw itd.) w zależnośći od wartości sensora.",
+			"defOn": false,
+			"en": {
+				"name": "Conditioning",
+				"desc": "It allows you to control depending on the sensor value."
+			},
+			"es": {
+				"name": "Acondicionamiento",
+				"desc": "Le permite controlar el relé en función del valor del sensor."
+			},
+			"de": {
+				"name": "Konditionierung",
+				"desc": "Damit können Sie das Relais abhängig vom Sensorwert steuern."
+			},
+			"fr": {
+				"name": "Conditionnement",
+				"desc": "Il permet de contrôler le relais en fonction de la valeur du capteur."
 			}
 		},
 		"SUPLA_LED": {
@@ -446,7 +513,6 @@
 			"name": "PCF8575",
 			"desc": "Ustawienia urządzenia->I2C. Umożliwia obsługę rozszerzenia portów x16 PCF8575.",
 			"defOn": false,
-			"new": true,
 			"en": {
 				"name": "PCF8575",
 				"desc": "Device settings->I2C. Supports PCF8575 x16 port expansion."
@@ -468,7 +534,6 @@
 			"name": "PCF8574/A",
 			"desc": "Ustawienia urządzenia->I2C. Umożliwia obsługę rozszerzenia portów x8 PCF8574/A.",
 			"defOn": false,
-			"new": true,
 			"en": {
 				"name": "PCF8574/A",
 				"desc": "Device settings->I2C. Supports PCF8574/A x8 port expansion."
@@ -763,11 +828,10 @@
 				"desc": "Paramètres de l´appareil->I2C. Il permet le fonctionnement d´un écran LCD HD44780."
 			}
 		},
-		"SUPLA_BH1750": {
+		"SUPLA_BH1750_KPOP": {
 			"name": "Sensor BH1750",
 			"desc": "Ustawienia urządzenia->I2C. Czujnik natężenia światła BH1750",
 			"defOn": false,
-			"new": true,
 			"en": {
 				"name": "BH1750 sensor",
 				"desc": "Device settings->I2C. Light intensity sensor BH1750."
@@ -785,11 +849,31 @@
 				"desc": "Paramètres de l´appareil->I2C. Capteur d'intensité lumineuse BH1750."
 			}
 		},
-		"SUPLA_MAX44009": {
+		"SUPLA_MS5611": {
+			"name": "Sensor MS5611",
+			"desc": "Ustawienia urządzenia->I2C. Barometr MS5611",
+			"defOn": false,
+			"en": {
+				"name": "MS5611 sensor",
+				"desc": "Device settings->I2C. Barometer MS5611."
+			},
+			"es": {
+				"name": "Sonda MS5611",
+				"desc": "Configuración del dispositivo->I2C. Barometer MS5611."
+			},
+			"de": {
+				"name": "Fühler MS5611",
+				"desc": "Geräteeinstellungen->I2C. Barometer MS5611."
+			},
+			"fr": {
+				"name": "Capteur MS5611",
+				"desc": "Paramètres de l´appareil->I2C. Barometer MS5611."
+			}
+		},
+		"SUPLA_MAX44009_KPOP": {
 			"name": "Sensor MAX44009",
 			"desc": "Ustawienia urządzenia->I2C. Czujnik natężenia światła MAX44009",
 			"defOn": false,
-			"new": true,
 			"en": {
 				"name": "MAX44009 sensor",
 				"desc": "Device settings->I2C. Light intensity sensor MAX44009."
@@ -805,6 +889,27 @@
 			"fr": {
 				"name": "Capteur MAX44009",
 				"desc": "Paramètres de l´appareil->I2C. Capteur d'intensité lumineuse MAX44009."
+			}
+		},
+		"SUPLA_AHTX0": {
+			"name": "Sensor AHT10/20",
+			"desc": "Ustawienia urządzenia->I2C. Umożliwia obsługę sensorów AHT10/20.",
+			"defOn": false,
+			"en": {
+				"name": "AHT10/20 sensor",
+				"desc": "Device settings->I2C. It enables the support of AHT10/20 sensors."
+			},
+			"es": {
+				"name": "Sensor AHT10/20",
+				"desc": "Configuración del dispositivo->I2C. Habilita el soporte de sensores AHT10/20."
+			},
+			"de": {
+				"name": "AHT10/20 Sensor",
+				"desc": "Geräteeinstellungen->I2C. Es ermöglicht die Unterstützung von AHT10/20-Sensoren."
+			},
+			"fr": {
+				"name": "Capteur AHT10/20",
+				"desc": "Paramètres de l´appareil->I2C. Il permet la prise en charge des capteurs AHT10/20."
 			}
 		}
 	},
@@ -853,7 +958,7 @@
 		}
 	},
 	"ANALOG": {
-		"SUPLA_ANALOG_READING_MAP": {
+		"SUPLA_ANALOG_READING_KPOP": {
 			"name": "Pomiar analogowy (ADC Pin)",
 			"desc": "Ustawienia urządzenia->Analog. Umożliwia obsługę pomiaru napięcia na wejściu ADC Pin.",
 			"defOn": false,
@@ -1007,6 +1112,48 @@
 				"name": "Compteur d´énergie ADE7953",
 				"desc": "Paramètres de l´appareil->I2C. Il permet le fonctionnement du compteur d´énergie ADE7953."
 			}
+		},
+		"SUPLA_MODBUS_SDM_ONE_PHASE": {
+			"name": "Licznik energii SDM Modbus 1F",
+			"desc": "Umożliwia obsługę licznika energii za pomoca protokołu Modbus.",
+			"defOn": false,
+			"en": {
+				"name": "Energy meter SDM Modbus 1F",
+				"desc": "It enables the operation of the energy meter SDM Modbus 1F."
+			},
+			"es": {
+				"name": "Contador de energía SDM Modbus 1F",
+				"desc": "Permite el funcionamiento del contador de energía SDM Modbus 1F."
+			},
+			"de": {
+				"name": "Energiezähler SDM Modbus 1F",
+				"desc": "Es ermöglicht den Betrieb des Energiezählers SDM Modbus 1F."
+			},
+			"fr": {
+				"name": "Compteur d´énergie SDM Modbus 1F",
+				"desc": "Il permet le fonctionnement du compteur d´énergie SDM Modbus 1F."
+			}
+		},
+		"SUPLA_MODBUS_SDM": {
+			"name": "Licznik energii SDM Modbus 3F",
+			"desc": "Umożliwia obsługę licznika energii za pomoca protokołu Modbus.",
+			"defOn": false,
+			"en": {
+				"name": "Energy meter SDM Modbus 3F",
+				"desc": "It enables the operation of the energy meter SDM Modbus 3F."
+			},
+			"es": {
+				"name": "Contador de energía SDM Modbus 3F",
+				"desc": "Permite el funcionamiento del contador de energía SDM Modbus 3F."
+			},
+			"de": {
+				"name": "Energiezähler SDM Modbus 3F",
+				"desc": "Es ermöglicht den Betrieb des Energiezählers SDM Modbus 3F."
+			},
+			"fr": {
+				"name": "Compteur d´énergie SDM Modbus 3F",
+				"desc": "Il permet le fonctionnement du compteur d´énergie SDM Modbus 3F."
+			}
 		}
 	},
 	"OTHER": {
@@ -1101,7 +1248,6 @@
 			"name": "Linki bezpośrednie - odczyt wartości kanału",
 			"desc": "Umożliwia odczytywanie temperatury za pomocą linków bezpośrednich.",
 			"defOn": false,
-			"new": true,
 			"depRel": [
 				"SUPLA_DIRECT_LINKS_SENSOR_THERMOMETR"
 			],
@@ -1124,11 +1270,10 @@
 		}
 	},
 	"AIR_QUALITY_SENSORS": {
-		"SUPLA_VINDRIKTNING_IKEA": {
+		"SUPLA_VINDRIKTNING_IKEA_KPOP": {
 			"name": "IKEA VINDRIKTNING",
 			"desc": "Ustawienia urządzenia->Inne. Czujnik cząstek stałych PM1006",
 			"defOn": false,
-			"new": true,
 			"en": {
 				"name": "IKEA VINDRIKTNING",
 				"desc": "Device settings->Other. Particulate Matter Sensor with PM1006 inside."
@@ -1146,11 +1291,10 @@
 				"desc": "Paramètres de l´appareil->Autre. Capteur de particules avec PM1006 à l'intérieur"
 			}
 		},
-		"SUPLA_PMSX003": {
+		"SUPLA_PMSX003_KPOP": {
 			"name": "PMSx003",
 			"desc": "Ustawienia urządzenia->Inne. Czujnik cząstek stałych: PM1.0, PM2.5, PM10. Obsługiwane czujniki PMS1003, PMS3003, PMS5003, PMS5003S, PMS5003T, PMS5003ST, PMS7003, PMSA003.",
 			"defOn": false,
-			"new": true,
 			"en": {
 				"name": "PMSx003",
 				"desc": "Device settings->Other. Particulate sensor: PM1.0, PM2.5, PM10. Supported sensors PMS1003, PMS3003, PMS5003, PMS5003S, PMS5003T, PMS5003ST, PMS7003, PMSA003."
@@ -1166,6 +1310,126 @@
 			"fr": {
 				"name": "PMSx003",
 				"desc": "Paramètres de l´appareil->Autre. Capteur de particules : PM1.0, PM2.5, PM10. Capteurs pris en charge PMS1003, PMS3003, PMS5003, PMS5003S, PMS5003T, PMS5003ST, PMS7003, PMSA003."
+			}
+		}
+	},
+	"BONEIO": {
+		"SUPLA_BONEIO_32x10A": {
+			"name": "boneIO 32x10A",
+			"desc": "",
+			"defOn": false,
+			"en": {
+				"name": "boneIO 32x10A",
+				"desc": ""
+			},
+			"es": {
+				"name": "boneIO 32x10A",
+				"desc": ""
+			},
+			"de": {
+				"name": "boneIO 32x10A",
+				"desc": ""
+			},
+			"fr": {
+				"name": "boneIO 32x10A",
+				"desc": ""
+			}
+		},
+		"SUPLA_BONEIO_24x16A": {
+			"name": "boneIO 24x16A",
+			"desc": "",
+			"defOn": false,
+			"en": {
+				"name": "boneIO 24x16A",
+				"desc": ""
+			},
+			"es": {
+				"name": "boneIO 24x16A",
+				"desc": ""
+			},
+			"de": {
+				"name": "boneIO 24x16A",
+				"desc": ""
+			},
+			"fr": {
+				"name": "boneIO 24x16A",
+				"desc": ""
+			}
+		}
+	},
+	"DEBUG": {
+		"SUPLA_EXCLUDE_LITTLEFS_CONFIG": {
+			"name": "Wyłączenie LittleFS",
+			"desc": "Wyklucza dodanie includa LITTLEFS, dzięki czemu kompilacja oszczędza prawie 100KB binarki.",
+			"alertOff": "Wyłączenie tej opcji zwiększy o 100KB binarkę, zmniejszając ilość dostępnego miejsca np. dla OTA.",
+			"defOn": true,
+			"en": {
+				"name": "Disabling LittleFS",
+				"desc": "It excludes the addition of the LITTLEFS includa, which saves the compilation almost 100KB.",
+				"alertOff": "Disabling this option will increase the compilation by almost 100KB, reducing the amount of space available, e.g. for OTA."
+			},
+			"es": {
+				"name": "Deshabilitar LittleFS",
+				"desc": "Excluye la adición de LITTLEFS includa, lo que ahorra la compilación casi 100 KB.",
+				"alertOff": "Deshabilitar esta opción aumentará la compilación en casi 100 KB, reduciendo la cantidad de espacio disponible, por ejemplo, para OTA."
+			},
+			"de": {
+				"name": "LittleFS deaktivieren",
+				"desc": "Es schließt das Hinzufügen der LITTLEFS-Includa aus, wodurch die Kompilierung fast 100 KB einspart.",
+				"alertOff": "Durch Deaktivieren dieser Option wird die Kompilierung um fast 100 KB erhöht, wodurch der verfügbare Speicherplatz, z. B. für OTA, verringert wird."
+			},
+			"fr": {
+				"name": "Désactivation de LittleFS",
+				"desc": "Il exclut l´ajout du LITTLEFS includa, qui permet d´économiser près de 100 Ko sur la compilation.",
+				"alertOff": "La désactivation de cette option augmentera la compilation de près de 100 Ko, réduisant ainsi la quantité d'espace disponible, par exemple pour l'OTA."
+			}
+		},
+		"SUPLA_DISABLE_LOGS": {
+			"name": "Wyłączenie wszystkich logów",
+			"desc": "Opcja pozwala na wyłączenie wszystkich komunikatów logowania wyświetlanych na interfejsie UART. Wyłączenie tej funkcji skutkuje mniejszym rozmiarem binarki. (SUPLA_DISABLE_LOGS)",
+			"defOn": true,
+			"depRel": [
+				"SUPLA_COMM_DEBUG"
+			],
+			"en": {
+				"name": "Disable All Logs",
+				"desc": "This option allows for the disabling of all logging messages displayed on the UART interface. Disabling this feature results in a smaller binary size. (SUPLA_DISABLE_LOGS)"
+			},
+			"es": {
+				"name": "Desactivar todos los registros",
+				"desc": "Esta opción permite desactivar todos los mensajes de registro que se muestran en la interfaz UART. Desactivar esta función resulta en un tamaño binario más pequeño. (SUPLA_DISABLE_LOGS)"
+			},
+			"de": {
+				"name": "Alle Protokolle deaktivieren",
+				"desc": "Diese Option ermöglicht das Deaktivieren aller Protokollnachrichten, die auf der UART-Schnittstelle angezeigt werden. Das Deaktivieren dieser Funktion führt zu einer kleineren Binärgröße. (SUPLA_DISABLE_LOGS)"
+			},
+			"fr": {
+				"name": "Désactiver tous les journaux",
+				"desc": "Cette option permet de désactiver tous les messages de journalisation affichés sur l'interface UART. La désactivation de cette fonction entraîne une taille binaire plus petite. (SUPLA_DISABLE_LOGS)"
+			}
+		},
+		"SUPLA_DEBUG_MODE": {
+			"name": "DEBUG",
+			"desc": "Rejestruje dodatkowe informacje diagnostyczne związane z komunikacją (SUPLA_DEBUG_MODE).",
+			"defOn": false,
+			"depRel": [
+				"SUPLA_DISABLE_LOGS"
+			],
+			"en": {
+				"name": "DEBUG",
+				"desc": "Logs additional diagnostic information related to communication (SUPLA_DEBUG_MODE)."
+			},
+			"es": {
+				"name": "DEBUG",
+				"desc": "Registra información diagnóstica adicional relacionada con la comunicación (SUPLA_DEBUG_MODE)."
+			},
+			"de": {
+				"name": "DEBUG",
+				"desc": "Zeichnet zusätzliche diagnostische Informationen zur Kommunikation auf (SUPLA_DEBUG_MODE)."
+			},
+			"fr": {
+				"name": "DEBUG",
+				"desc": "Enregistre des informations de diagnostic supplémentaires liées à la communication (SUPLA_DEBUG_MODE)."
 			}
 		}
 	},
@@ -1253,7 +1517,20 @@
 			"es": "Medidor de energía eléctrica",
 			"de": "Stromzähler",
 			"fr": "Compteur d'énergie électrique"
+		},
+		"BONEIO": {
+			"pl": "boneIO",
+			"en": "boneIO",
+			"es": "boneIO",
+			"de": "boneIO",
+			"fr": "boneIO"
+		},
+		"DEBUG": {
+			"pl": "Debug",
+			"en": "Debug",
+			"es": "Debug",
+			"de": "Debug",
+			"fr": "Debug"
 		}
-
 	}
 }

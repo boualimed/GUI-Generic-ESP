@@ -13,9 +13,11 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+#ifdef SUPLA_DIRECT_LINKS_MULTI_SENSOR
 
 #include <Arduino.h>
 #include "DirectLinksConnect.h"
+#include "../../GUIGenericCommon.h"
 
 namespace Supla {
 namespace Sensor {
@@ -109,11 +111,27 @@ void DirectLinksConnect::send() {
     delete client;
     client = nullptr;
   }
+  printFreeMemory("DirectLinksConnect");
 }
 
-String DirectLinksConnect::getRequest() {
-  String request = String("GET /direct/") + _url + " HTTP/1.1\r\n" + "Host: " + _host + "\r\n" + "User-Agent: BuildFailureDetectorESP8266\r\n" +
-                   "Connection: close\r\n\r\n";
+const char *DirectLinksConnect::getRequest() {
+  static char result[1088];
+  char request[256];
+
+  if (static_cast<unsigned int>(snprintf(request, sizeof(request),
+                                         "GET /direct/%s HTTP/1.1\r\n"
+                                         "Host: %s\r\n"
+                                         "User-Agent: BuildFailureDetectorESP8266\r\n"
+                                         "Connection: close\r\n\r\n",
+                                         _url, _host)) >= sizeof(request)) {
+    Serial.println(F("Error: URL or host too long"));
+    return nullptr;
+  }
+
+  if (!client || !client->connected()) {
+    Serial.println(F("Error: Client not connected"));
+    return nullptr;
+  }
 
   client->print(request);
 
@@ -122,14 +140,27 @@ String DirectLinksConnect::getRequest() {
       Serial.println(F("Direct links - Headers received"));
       break;
     }
+    delay(0);
   }
-  char result[1200];
-  int i = 0;
-  while (client->connected() || client->available()) {
-    result[i++] = (char)client->read();
-  }
-  result[strlen(result)] = '\0';
 
+  size_t i = 0;
+
+  while (client->connected() || client->available()) {
+    char c = client->read();
+    if (i < sizeof(result) - 1) {  // Avoid buffer overflow
+      result[i++] = c;
+      // Check for the end of response
+      if (c == '}' && client->peek() == -1) {
+        break;
+      }
+    }
+    else {
+      break;  // Stop reading to prevent buffer overflow
+    }
+    delay(0);
+  }
+
+  result[i] = '\0';  // Null-terminate the result string
   Serial.println(result);
 
   return result;
@@ -141,7 +172,7 @@ void DirectLinksConnect::sendRequest() {
 void DirectLinksConnect::iterateAlways() {
   onInitNetworkConnected();
 
-  if (millis() - lastReadTime > 300000) {
+  if (millis() - lastReadTime > 60000) {
     send();
     lastReadTime = millis();
   }
@@ -157,3 +188,4 @@ void DirectLinksConnect::onInitNetworkConnected() {
 
 };  // namespace Sensor
 };  // namespace Supla
+#endif

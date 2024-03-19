@@ -21,7 +21,7 @@
 #define CSE7766_PIN_INVERSE 0  // Signal is inverted
 #endif
 
-#define CSE7766_SYNC_INTERVAL 500   // Safe time between transmissions (ms)
+#define CSE7766_SYNC_INTERVAL 300   // Safe time between transmissions (ms)
 #define CSE7766_BAUDRATE      4800  // UART baudrate
 
 #define CSE7766_V1R 1.0  // 1mR current resistor
@@ -47,8 +47,8 @@ class CSE7766 {
   CSE7766(HardwareSerial& serial);
 
   void expectedCurrent(double expected);
-  void expectedVoltage(unsigned int expected);
-  void expectedPower(unsigned int expected);
+  void expectedVoltage(double expected);
+  void expectedPower(double expected);
   void setCurrentRatio(double value);
   void setVoltageRatio(double value);
   void setPowerRatio(double value);

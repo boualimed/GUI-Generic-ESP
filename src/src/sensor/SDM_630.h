@@ -13,7 +13,7 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
-
+#ifdef SUPLA_MODBUS_SDM
 #ifndef _Three_Phase_SDM630_h
 #define _Three_Phase_SDM630_h
 
@@ -29,9 +29,9 @@ namespace Sensor {
 class SDM630 : public ReadValuesSDM, public ElectricityMeter {
  public:
 #if defined(ESP8266)
-  SDM630(int8_t pinRX, int8_t pinTX);
+  SDM630(int8_t pinRX, int8_t pinTX, long baud = 9600);
 #else
-  SDM630(HardwareSerial& serial, int8_t pinRX, int8_t pinTX);
+  SDM630(HardwareSerial& serial, int8_t pinRX, int8_t pinTX, long baud = 9600);
 #endif
   void onInit();
   virtual void readValuesFromDevice();
@@ -40,4 +40,5 @@ class SDM630 : public ReadValuesSDM, public ElectricityMeter {
 };  // namespace Sensor
 };  // namespace Supla
 
+#endif
 #endif

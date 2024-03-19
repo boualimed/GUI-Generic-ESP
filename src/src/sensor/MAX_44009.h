@@ -13,30 +13,55 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+#ifdef SUPLA_MAX44009_KPOP
+
 #ifndef _max44009_h
 #define _max44009_h
 #include <Max44009.h>
 
 #include <Arduino.h>
-#include <supla/sensor/thermometer.h>
+#include <supla/sensor/general_purpose_measurement.h>
 
 namespace Supla {
 namespace Sensor {
-class MAX_44009 : public Thermometer {
+class MAX_44009 : public GeneralPurposeMeasurement {
  public:
-  MAX_44009();
-  double getValue();
+  explicit MAX_44009() {
+    sensor = new Max44009(0x4A);
+    setDefaultUnitAfterValue("lx");
+    setKeepHistory(SUPLA_GENERAL_PURPOSE_MEASUREMENT_CHART_TYPE_LINEAR);
+  }
+
+  double getValue() {
+    int err = sensor->getError();
+
+    if (err != MAX44009_OK) {
+      SUPLA_LOG_DEBUG("MAX44009 [ERROR] Code #%d\n", err);
+      retryCount++;
+      if (retryCount > 3) {
+        retryCount = 0;
+        lux = NAN;
+      }
+    }
+    else {
+      retryCount = 0;
+      lux = sensor->getLux();
+    }
+    return lux;
+  }
+
+  void onInit() {
+    channel.setNewValue(getValue());
+  }
 
  private:
-  void onInit();
-
- protected:
   Max44009 *sensor;
 
-  double lux = TEMPERATURE_NOT_AVAILABLE;
+  double lux = NAN;
   int8_t retryCount = 0;
 };
 }  // namespace Sensor
 }  // namespace Supla
 
+#endif
 #endif

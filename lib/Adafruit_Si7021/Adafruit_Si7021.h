@@ -23,7 +23,7 @@
 #define __Si7021_H__
 
 #include "Arduino.h"
-#include <Wire.h>
+#include <Adafruit_I2CDevice.h>
 
 /*!
  *  I2C ADDRESS/BITS
@@ -114,12 +114,10 @@ private:
   si_sensorType _model;
   uint8_t _revision;
   uint8_t _readRegister8(uint8_t reg);
-  uint16_t _readRegister16(uint8_t reg);
   void _writeRegister8(uint8_t reg, uint8_t value);
 
-  int8_t _i2caddr;
-  TwoWire *_wire;
-  const static int _TRANSACTION_TIMEOUT = 100; // Wire NAK/Busy timeout in ms
+  Adafruit_I2CDevice *i2c_dev = NULL;          ///< Pointer to I2C bus interface
+  const static int _TRANSACTION_TIMEOUT = 200; // Wire NAK/Busy timeout in ms
 };
 
 #endif // __Si7021_H__

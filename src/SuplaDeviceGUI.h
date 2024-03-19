@@ -17,18 +17,21 @@
 #ifndef SuplaDeviceGUI_h
 #define SuplaDeviceGUI_h
 
-//#include <DoubleResetDetector.h>
-#include <SPI.h>
+#include "GUI-Generic_Config.h"
+#include "GUIGenericCommonDefined.h"
 
 #include <SuplaDeviceExtensions.h>
 #include <SuplaDevice.h>
+#include "src/control/ControlGUI.h"
 
-#include "GUI-Generic_Config.h"
-#include "GUIGenericCommonDefined.h"
 #include "GUIGenericCommon.h"
 #include "SuplaTemplateBoard.h"
 
 #include "SuplaConfigESP.h"
+
+#include "SuplaCommonPROGMEM.h"
+#include "src/boneIO/boneIO.h"
+
 #include "SuplaConfigManager.h"
 #include "SuplaWebPageRelay.h"
 #include "SuplaWebPageControl.h"
@@ -37,7 +40,6 @@
 #include "SuplaWebPageConfig.h"
 
 #include "SuplaWebPageDeviceSettings.h"
-#include "SuplaWebPageHome.h"
 
 #include "SuplaWebPageSensors.h"
 #include "SuplaWebPageSensorSpi.h"
@@ -49,13 +51,14 @@
 #include "SuplaWebPageDownload.h"
 #include "SuplaWebPageUpload.h"
 #include "SuplaWebPageTools.h"
-#include "SuplaWebCorrection.h"
 
-#include "SuplaCommonPROGMEM.h"
 #include "Markup.h"
+#include "SuplaConditions.h"
+#include "SuplaWebPageHome.h"
 
 #ifdef SUPLA_OLED
-#include "SuplaOled.h"
+#include "src/display/OledButtonController.h"
+#include "src/display/SuplaOled.h"
 #endif
 
 #include <vector>
@@ -63,16 +66,20 @@
 #include <supla/control/button.h>
 #include <supla/control/ButtonAnalog.h>
 #include <supla/control/relay.h>
+#include <supla/control/light_relay.h>
 #include <supla/control/virtual_relay.h>
 #include <supla/control/roller_shutter.h>
 
 #ifdef SUPLA_DS18B20
-#include <supla/sensor/DS_18B20.h>
+#include "src/sensor/DS_18B20.h"
 #endif
+
+#if defined(SUPLA_DHT22) || defined(SUPLA_DHT11)
 #include <supla/sensor/DHT.h>
+#endif
 
 #ifdef SUPLA_HC_SR04
-#include <supla/sensor/HC_SR04_NewPing.h>
+#include "src/sensor/HC_SR04_NewPing.h"
 #endif
 
 #include <supla/sensor/binary.h>
@@ -84,7 +91,7 @@
 #include <supla/sensor/BMP280.h>
 #endif
 #ifdef SUPLA_SI7021_SONOFF
-#include <supla/sensor/Si7021_sonoff.h>
+#include "src/sensor/Si7021Sonoff.h"
 #endif
 #ifdef SUPLA_SHT3x
 #include <supla/sensor/SHT3x.h>
@@ -96,7 +103,7 @@
 #include <supla/sensor/Si7021.h>
 #endif
 #ifdef SUPLA_MAX6675
-#include <supla/sensor/MAX6675_K.h>
+#include "src/sensor/MAX6675K.h"
 #endif
 #ifdef SUPLA_MAX31855
 #include <supla/sensor/MAX31855.h>
@@ -105,7 +112,7 @@
 #include <supla/sensor/impulse_counter.h>
 #include <supla/control/internal_pin_output.h>
 #endif
-#ifdef DEBUG_MODE
+#ifdef SUPLA_DEBUG_MODE
 #include <supla/sensor/esp_free_heap.h>
 #endif
 #ifdef SUPLA_HLW8012
@@ -116,6 +123,7 @@
 #endif
 
 #include "src/control/PinStatusLedGUI.h"
+#include "src/control/Pushover.h"
 
 #ifdef SUPLA_RGBW
 #include <supla/control/rgbw_leds.h>
@@ -123,9 +131,10 @@
 #include <supla/control/dimmer_leds.h>
 #endif
 
+#if defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_I2C_ENERGY_METER)
 #include <Wire.h>
+#endif
 
-#include <supla/control/pushover.h>
 #include <supla/control/direct_links.h>
 
 #ifdef SUPLA_NTC_10K
@@ -138,8 +147,8 @@
 
 #include <supla/correction.h>
 
-#ifdef SUPLA_ANALOG_READING_MAP
-#include <supla/sensor/AnalogReadingMap.h>
+#ifdef SUPLA_ANALOG_READING_KPOP
+#include "src/sensor/AnalogReading.h"
 #endif
 
 #ifdef SUPLA_VL53L0X
@@ -162,28 +171,36 @@
 #include <supla/sensor/electricity_meter.h>
 
 #ifdef SUPLA_LCD_HD44780
-#include "SuplaLCD.h"
+#include "src/display/SuplaLCD.h"
 #endif
 
-#ifdef SUPLA_BH1750
-#include <supla/sensor/BH1750.h>
+#ifdef SUPLA_BH1750_KPOP
+#include "src/sensor/BH_1750.h"
 #endif
 
-#ifdef SUPLA_MAX44009
+#ifdef SUPLA_MS5611
+#include <supla/sensor/MS5611.h>
+#endif
+
+#ifdef SUPLA_MAX44009_KPOP
 #include "src/sensor/MAX_44009.h"
 #endif
 
 #include "src/improv/improv_serial_component.h"
 #include "src/network/SuplaGuiWiFi.h"
 
-#ifdef SUPLA_VINDRIKTNING_IKEA
+#ifdef SUPLA_VINDRIKTNING_IKEA_KPOP
 #include "src/sensor/VindriktningIkea.h"
 #endif
 
+#ifdef SUPLA_PMSX003_KPOP
 #include "src/sensor/PMSx003.h"
+#endif
 
 #ifdef SUPLA_WT32_ETH01_LAN8720
 #include "src/network/SuplaGuiWt32_eth01.h"
+#elif defined(SUPLA_ETH01_LAN8720)
+#include "src/network/SuplaGuiEth01.h"
 #endif
 
 #ifdef SUPLA_ADE7953
@@ -191,9 +208,10 @@
 #endif
 
 #ifdef GUI_SENSOR_I2C_EXPENDER
-#include "src/control/PCF_8575.h"
-#include "src/control/PCF_8574.h"
-#include "src/control/MCP_23017.h"
+#include "src/expander/ConfigExpander.h"
+#include "src/expander/ExpanderPCF8574.h"
+#include "src/expander/ExpanderPCF8575.h"
+#include "src/expander/ExpanderMCP23017.h"
 #endif
 
 #ifdef SUPLA_WAKE_ON_LAN
@@ -204,9 +222,36 @@
 #include "src/sensor/SDM_630.h"
 #endif
 
+#ifdef SUPLA_MODBUS_SDM_ONE_PHASE
+#include "src/sensor/SDM_120.h"
+#endif
+
 #ifdef SUPLA_DEEP_SLEEP
 #include "src/control/deepSleep.h"
 #endif
+
+#ifdef SUPLA_THERMOSTAT
+#include "src/control/ThermostatGUI.h"
+#endif
+
+#ifdef SUPLA_CC1101
+#include "src/sensor/WmbusMeter.h"
+#include <Drivers/drivers.h>
+#include <SensorInfo.h>
+#endif
+
+#ifdef SUPLA_AHTX0
+#include "src/sensor/AHTX0.h"
+#endif
+
+#include "src/storage/SPIFFS_config.h"
+
+#define TIME_SAVE_PERIOD_SEK                 30   // the time is given in seconds
+#define TIME_SAVE_PERIOD_IMPULSE_COUNTER_SEK 600  // 10min
+#define STORAGE_OFFSET                       0
+#include <supla/storage/eeprom.h>
+
+extern Supla::Eeprom eeprom;
 
 namespace Supla {
 namespace GUI {
@@ -216,14 +261,27 @@ void setupConnection();
 void enableConnectionSSL(bool value);
 void crateWebServer();
 
+void addRelayOrThermostat(int nr);
+
 #ifdef SUPLA_RELAY
 void addRelay(uint8_t nr);
-void addButtonToRelay(uint8_t nrRelay);
+void addButtonToRelay(uint8_t nrRelay, Supla::Control::Relay *relay);
+void addButtonToRelay(uint8_t nrRelay,
+                      Supla::Element *element = nullptr,
+                      Supla::ActionHandler *client = nullptr,
+                      Supla::Control::Relay *relay = nullptr);
 #endif
 
 #ifdef SUPLA_ACTION_TRIGGER
+struct ActionTrigger {
+  bool active = false;
+};
+
+extern ActionTrigger *actionTrigger;
+
 void addButtonActionTrigger(uint8_t nr);
-void addActionTriggerRelatedChannel(Supla::Control::Button *button, int eventButton, Supla::Element *element);
+void addActionTriggerRelatedChannel(uint8_t nr, Supla::Control::Button *button, int eventButton, Supla::Element *element);
+int calculateElementCountActionTrigger();
 #endif
 
 #if defined(SUPLA_RF_BRIDGE)
@@ -235,8 +293,8 @@ void addButtonBridge(uint8_t nr);
 extern std::vector<Supla::Control::Relay *> relay;
 #endif
 
-#if defined(SUPLA_PUSHOVER)
-void addPushover(uint8_t nr, const String &name, Supla::ChannelElement *client);
+#ifdef SUPLA_PUSHOVER
+void addPushover(uint8_t nr);
 #endif
 
 #if defined(SUPLA_DIRECT_LINKS)
@@ -264,17 +322,8 @@ void addImpulseCounter(uint8_t nr);
 
 #ifdef SUPLA_RGBW
 void addRGBWLeds(uint8_t nr);
-void setRGBWButton(Supla::Control::RGBWBase *rgbw, int buttonPin);
+void setRGBWButton(uint8_t nr, Supla::Control::RGBWBase *rgbw);
 void setRGBWDefaultState(Supla::Control::RGBWBase *rgbw, uint8_t memory);
-#endif
-
-void addConditionsTurnON(int function, Supla::ChannelElement *client, uint8_t sensorNumber = 0);
-void addConditionsTurnOFF(int function, Supla::ChannelElement *client, uint8_t sensorNumber = 0);
-void addConditionsTurnON(int function, Supla::Sensor::ElectricityMeter *client, uint8_t sensorNumber = 0);
-void addConditionsTurnOFF(int function, Supla::Sensor::ElectricityMeter *client, uint8_t sensorNumber = 0);
-
-#if defined(GUI_SENSOR_1WIRE) || defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_SPI)
-void addCorrectionSensor();
 #endif
 
 #ifdef SUPLA_HLW8012
@@ -296,12 +345,16 @@ void addADE7953(int8_t pinIRQ);
 extern Supla::Sensor::MPX_5XXX *mpx;
 #endif
 
-#ifdef SUPLA_ANALOG_READING_MAP
-extern Supla::Sensor::AnalogRedingMap **analog;
+#ifdef SUPLA_ANALOG_READING_KPOP
+extern std::vector<Supla::Sensor::AnalogReding *> analogSensorData;
 #endif
 
 #ifdef SUPLA_MODBUS_SDM
 extern Supla::Sensor::SDM630 *smd;
+#endif
+
+#ifdef SUPLA_MODBUS_SDM_ONE_PHASE
+extern Supla::Sensor::SDM120 *smd120;
 #endif
 
 };  // namespace GUI
@@ -310,8 +363,15 @@ extern Supla::Sensor::SDM630 *smd;
 extern SuplaConfigManager *ConfigManager;
 extern SuplaConfigESP *ConfigESP;
 extern SuplaWebServer *WebServer;
+
+#ifdef GUI_SENSOR_I2C_EXPENDER
+extern Supla::Control::ConfigExpander *Expander;
+#endif
+
 #ifdef SUPLA_WT32_ETH01_LAN8720
 extern Supla::WT32_ETH01 *eth;
+#elif defined(SUPLA_ETH01_LAN8720)
+extern Supla::GUI_ETH01 *eth;
 #else
 extern Supla::GUIESPWifi *wifi;
 #endif

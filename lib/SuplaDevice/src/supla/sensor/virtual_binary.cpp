@@ -15,24 +15,15 @@
 */
 
 #include "virtual_binary.h"
-#include <supla/time.h>
 
 namespace Supla {
 namespace Sensor {
 
-VirtualBinary::VirtualBinary() : state(false), lastReadTime(0) {
-  channel.setType(SUPLA_CHANNELTYPE_SENSORNO);
+VirtualBinary::VirtualBinary() {
 }
 
 bool VirtualBinary::getValue() {
   return state;
-}
-
-void VirtualBinary::iterateAlways() {
-  if (millis() - lastReadTime > 100) {
-    lastReadTime = millis();
-    channel.setNewValue(getValue());
-  }
 }
 
 void VirtualBinary::onInit() {

@@ -25,6 +25,7 @@
 #define S_UPDATE                  "Aktualisierung"
 #define S_RESTART                 "Neustart"
 #define S_RETURN                  "Zurück"
+#define S_CONDITION               "Bedingung"
 
 #define S_TEMPLATE_BOARD                                       "Modul Vorlage"
 #define S_TYPE                                                 "Typ"
@@ -34,7 +35,7 @@
 #define S_SENSORS_I2C                                          "i2c SENSOREN"
 #define S_SENSORS_SPI                                          "SPI SENSOREN"
 #define S_SENSORS_OTHER                                        "ANDERE SENSOREN"
-#define S_LED_BUTTON_CFG                                       "LED, TASTENKONFIGURATION"
+#define S_CONFIGURATION                                       "LED, TASTENKONFIGURATION"
 #define S_CFG_MODE                                             "Modus"
 #define S_QUANTITY                                             "MENGE"
 #define S_GPIO_SETTINGS_FOR_RELAYS                             "GPIO-Parameter für Relais"
@@ -42,10 +43,11 @@
 #define S_RELAY_NR_SETTINGS                                    "Konfiguration des Relais Nr. "
 #define S_STATE_CONTROL                                        "Status Kontrolle"
 #define S_REACTION_AFTER_RESET                                 "Reaktion nach Neustart"
+#define S_LIGHT_RELAY                                          "Sterowowanie światłem"
 #define S_GPIO_SETTINGS_FOR_BUTTONS                            "GPIO-Parameter für Tasten"
 #define S_BUTTON                                               "TASTE"
 #define S_BUTTON_NR_SETTINGS                                   "Parameter für Tasten Nr. "
-#define S_REACTION_TO                                          "Reaktion auf"
+#define S_REACTION                                             "Reaktion"
 #define S_RELAY_CONTROL                                        "Relaissteuerung"
 #define S_ACTION                                               "Action"
 #define S_GPIO_SETTINGS_FOR_LIMIT_SWITCH                       "GPIO-Einstellungen für Endschalter"
@@ -95,25 +97,39 @@
 #define S_STATUS_NETWORK_DISCONNECTED    "Keine Verbindung zum Netzwerk"
 
 //#### SuplaCommonPROGMEM.h ####
-#define S_OFF                           "AUS"
-#define S_ON                            "EINGESCHALTET"
-#define S_TOGGLE                        "TOGGLE"
-#define S_LOW                           "NIEDRIG"
-#define S_HIGH                          "HOCH"
-#define S_POSITION_MEMORY               "LETZTEN STAND ZURÜCKSETZEN"
-#define S_REACTION_ON_PRESS             "WENN GEDRÜCKT"
-#define S_REACTION_ON_RELEASE           "WENN LOSGELASSEN"
-#define S_REACTION_ON_CHANGE            "STATUS ÄNDERUNG"
-#define S_REACTION_ON_HOLD              "IN WARTESTELLUNG"
-#define S_CFG_10_PRESSES                "10 MAL DRÜCKEN"
-#define S_5SEK_HOLD                     "5 SEKUNDEN GEDRÜCKT HALTEN"
-#define S_NORMAL                        "NORMAL"
-#define S_SLOW                          "SCHLEPPEND"
-#define S_MANUALLY                      "MANUELL"
-#define S_ON_CH_VAL_OFF_HEATING         "EIN > Kanalwert > AUS - Heizung"
-#define S_ON_CH_VAL_OFF_COOLING         "EIN < Kanalwert < AUS - Kühlung"
-#define S_ON_2CH_VAL_OFF_HUMIDIFICATION "EIN > 2. Kanalwert > AUS - Befeuchtung"
-#define S_ON_2CH_VAL_OFF_DRYING         "EIN < 2. Kanalwert < AUS - Trocknen"
+#define S_OFF                          "AUS"
+#define S_ON                           "EINGESCHALTET"
+#define S_TOGGLE                       "TOGGLE"
+#define S_LOW                          "NIEDRIG"
+#define S_HIGH                         "HOCH"
+#define S_POSITION_MEMORY              "LETZTEN STAND ZURÜCKSETZEN"
+#define S_REACTION_ON_PRESS            "WENN GEDRÜCKT"
+#define S_REACTION_ON_RELEASE          "WENN LOSGELASSEN"
+#define S_REACTION_ON_CHANGE           "STATUS ÄNDERUNG"
+#define S_REACTION_ON_HOLD             "IN WARTESTELLUNG"
+#define S_REACTION_MOTION_SENSOR       "MOTION SENSOR"
+#define S_REACTION_AUTOMATIC_STAIRCASE "AUTOMATIC STAIRCASE"
+#define S_CFG_10_PRESSES               "10 MAL DRÜCKEN"
+#define S_5SEK_HOLD                    "5 SEKUNDEN GEDRÜCKT HALTEN"
+#define S_NORMAL                       "NORMAL"
+#define S_SLOW                         "SCHLEPPEND"
+#define S_MANUALLY                     "MANUELL"
+
+#ifdef SUPLA_CONDITIONS
+#define S_CONDITIONING     "Konditionierung"
+#define S_TURN_ON_WHEN     "EIN wenn Wert"
+#define S_SWITCH_ON_VALUE  "Schaltwert"
+#define S_SWITCH_OFF_VALUE "Aus-Wert"
+
+#define S_ON_LESS    "kleiner"
+#define S_ON_GREATER "größer"
+
+#define S_CHANNEL_VALUE "Kanal"
+#define S_HUMIDITY      "Feuchtigkeit"
+#define S_VOLTAGE       "Spannung[V]"
+#define S_CURRENT       "Strom[A]"
+#define S_POWER         "Wirkleistung [W]"
+#endif
 
 //#### SuplaWebServer.cpp ####
 #define S_LIMIT_SWITCHES "GRENZSCHALTER"
@@ -160,11 +176,7 @@
 #define S_STATE                   "Zustand"
 #define S_MESSAGE                 "Botschaft"
 #define S_DIRECT_LINKS            "Direkte Links"
-#define S_CONDITIONING            "Konditionierung"
 #define S_SENSOR                  "Sensor"
-#define S_CONDITION               "Bedingung"
-#define S_SWITCH_ON_VALUE         "Einschaltwert"
-#define S_SWITCH_OFF_VALUE        "Ausschaltwert"
 #define S_SETTINGS_FOR_RELAYS     "Einstellungen für Relais"
 
 //#### SuplaHTTPUpdateServer.cpp ####
@@ -201,6 +213,28 @@
 
 #ifdef SUPLA_PUSHOVER
 #define S_SOUND "Sound"
+#endif
+
+#define S_BAUDRATE "Baudrate"
+
+#ifdef SUPLA_THERMOSTAT
+#define S_HEAT                     "Heat"
+#define S_COOL                     "Cool"
+#define S_DOMESTIC_HOT_WATER       "Domestic hot water"
+#define S_DIFFERENTIAL             "Differential"
+#define S_THERMOSTAT               "Thermostat"
+#define S_THERMOSTAT               "Thermostat"
+#define S_MAIN_THERMOMETER_CHANNEL "Main thermometrer"
+#define S_AUX_THERMOMETER_CHANNEL  "Aux thermometrer"
+#define S_HISTERESIS               "Histeresis"
+#endif
+
+#ifdef SUPLA_CC1101
+#define S_WMBUS_METER "Meter"
+#define S_WMBUS_SENSOR_TYPE "Sensor type"
+#define S_WMBUS_SENSOR_ID "Sensor id"
+#define S_WMBUS_SENSOR_KEY "Sensor key"
+#define S_WMBUS_SENSOR_PROP "Sensor property"
 #endif
 
 #endif  // _LANGUAGE_DE_S_H_

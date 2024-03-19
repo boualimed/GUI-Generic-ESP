@@ -17,10 +17,10 @@
 #ifndef SuplaCommonPROGMEM_h
 #define SuplaCommonPROGMEM_h
 #include <pgmspace.h>
-#include "SuplaDeviceGUI.h"
 #include "GUIGenericCommon.h"
 
-#define PGMT(pgm_ptr) (reinterpret_cast<const __FlashStringHelper*>(pgm_ptr))
+#define PGMT(pgm_ptr)           (reinterpret_cast<const __FlashStringHelper*>(pgm_ptr))
+#define COUNT_ELEMENTS_PGM(arr) (sizeof(arr) / sizeof(arr[0]))
 
 const char HTTP_META[] PROGMEM =
     "<!DOCTYPE HTML><html><head><meta http-equiv='content-type' content='text/html; charset=UTF-8'>"
@@ -93,8 +93,8 @@ const char HTTP_LOGO[] PROGMEM =
     "102.1,188.6z "
     "M167.7,88.5c-1,0-2.1,0.1-3.1,0.3c-9,1.7-14.2,10.6-10.8,18.6c2.9,6.8,11.4,10.3,19,7.8c7.1-2.3,11.1-9.1,9.6-15.9C180.9,93,174.8,88.5,167.7,88.5z'/"
     "></svg></a>";
-const char HTTP_SUMMARY[] PROGMEM =
-    "<h1>{h}</h1><span>LAST STATE: {s}<br>Firmware: SuplaDevice {v}<br>GUID: {g}<br>MAC: {m}<br>Free Mem: {f}KB<br>Mode: {c}</span>\n";
+// const char HTTP_SUMMARY[] PROGMEM =
+//     "<h1>{h}</h1><span>LAST STATE: {s}<br>Firmware: SuplaDevice {v}<br>GUID: {g}<br>MAC: {m}<br>Free Mem: {f}KB<br>Mode: {c}</span>\n";
 const char HTTP_IFRAMES[] PROGMEM =
     "<div class='dif difl dift'><iframe class='iframe' src='https://gui-generic-builder.supla.io/f.php?tl' onload='ifl(this)'></iframe></div>"
     "<div class='dif difr dift'><iframe class='iframe' src='https://gui-generic-builder.supla.io/f.php?tr' onload='ifl(this)'></iframe></div>"
@@ -211,59 +211,6 @@ const char* const GPIO_P[] PROGMEM = {GPIO0,  GPIO1,  GPIO2,  GPIO3,  GPIO4,  GP
                                       GPIO33, GPIO34, GPIO35, GPIO36, GPIO37, GPIO38, GPIO39,  OFF};
 #endif
 
-#ifdef GUI_SENSOR_I2C_EXPENDER
-const char GPIO_A0[] PROGMEM = "A0";
-const char GPIO_A1[] PROGMEM = "A1";
-const char GPIO_A2[] PROGMEM = "A2";
-const char GPIO_A3[] PROGMEM = "A3";
-const char GPIO_A4[] PROGMEM = "A4";
-const char GPIO_A5[] PROGMEM = "A5";
-const char GPIO_A6[] PROGMEM = "A6";
-const char GPIO_A7[] PROGMEM = "A7";
-const char GPIO_B0[] PROGMEM = "B0";
-const char GPIO_B1[] PROGMEM = "B1";
-const char GPIO_B2[] PROGMEM = "B2";
-const char GPIO_B3[] PROGMEM = "B3";
-const char GPIO_B4[] PROGMEM = "B4";
-const char GPIO_B5[] PROGMEM = "B5";
-const char GPIO_B6[] PROGMEM = "B6";
-const char GPIO_B7[] PROGMEM = "B7";
-
-const char* const GPIO_MCP23017_P[] PROGMEM = {GPIO_A0, GPIO_A1, GPIO_A2, GPIO_A3, GPIO_A4, GPIO_A5, GPIO_A6, GPIO_A7, GPIO_B0,
-                                               GPIO_B1, GPIO_B2, GPIO_B3, GPIO_B4, GPIO_B5, GPIO_B6, GPIO_B7, S_EMPTY, OFF};
-
-const char* const GPIO_PCF_8574_P[] PROGMEM = {GPIO_A0, GPIO_A1, GPIO_A2, GPIO_A3, GPIO_A4, GPIO_A5, GPIO_A6, GPIO_A7, S_EMPTY,
-                                               S_EMPTY, S_EMPTY, S_EMPTY, S_EMPTY, S_EMPTY, S_EMPTY, S_EMPTY, S_EMPTY, OFF};
-
-const char* const EXPENDER_LIST_P[] PROGMEM = {
-    OFF,
-#ifdef SUPLA_MCP23017
-    "MCP23017",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_PCF8575
-    "PCF8575",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_PCF8574
-    "PCF8574/A",
-#else
-    S_EMPTY,
-#endif
-};
-
-enum
-{
-  EXPENDER_OFF,
-  EXPENDER_MCP23017,
-  EXPENDER_PCF8575,
-  EXPENDER_PCF8574
-};
-
-#endif
-
 #if defined(SUPLA_BME280) || defined(SUPLA_BMP280)
 const char ADR76[] PROGMEM = "0x76";
 const char ADR77[] PROGMEM = "0x77";
@@ -276,6 +223,13 @@ const char ADR44[] PROGMEM = "0x44";
 const char ADR45[] PROGMEM = "0x45";
 const char ADR44_ADR45[] PROGMEM = "0x44 & 0x45";
 const char* const SHT3x_P[] PROGMEM = {OFF, ADR44, ADR45, ADR44_ADR45};
+#endif
+
+#if defined(SUPLA_AHTX0)
+const char ADR38[] PROGMEM = "0x38";
+const char ADR39[] PROGMEM = "0x39";
+const char ADR38_ADR39[] PROGMEM = "0x38 & 0x39";
+const char* const AHTX0_P[] PROGMEM = {OFF, ADR38, ADR39, ADR38_ADR39};
 #endif
 
 #if defined(GUI_SENSOR_I2C_EXPENDER) || defined(SUPLA_LCD_HD44780)
@@ -307,21 +261,80 @@ const char* const LEVEL_P[] PROGMEM = {LOW_STATE_CONTROL, HIGH_STATE_CONTROL};
 const char POSITION_MEMORY[] PROGMEM = S_POSITION_MEMORY;
 const char* const MEMORY_P[] PROGMEM = {OFF, ON, POSITION_MEMORY};
 
-const char REACTION_ON_PRESS[] PROGMEM = S_REACTION_ON_PRESS;
-const char REACTION_ON_RELEASE[] PROGMEM = S_REACTION_ON_RELEASE;
-const char REACTION_ON_CHANGE[] PROGMEM = S_REACTION_ON_CHANGE;
-const char REACTION_ON_HOLD[] PROGMEM = S_REACTION_ON_HOLD;
-const char* const TRIGGER_P[] PROGMEM = {REACTION_ON_PRESS, REACTION_ON_RELEASE, REACTION_ON_CHANGE, REACTION_ON_HOLD};
+namespace Supla {
+namespace GUI {
+// INCREASE_TEMPERATURE,
+// DECREASE_TEMPERATURE,
+// INCREASE_HEATING_TEMPERATURE,
+// DECREASE_HEATING_TEMPERATURE,
+// INCREASE_COOLING_TEMPERATURE,
+// DECREASE_COOLING_TEMPERATURE,
+// SWITCH_TO_MANUAL_MODE,
+// SWITCH_TO_WEEKLY_SCHEDULE_MODE,
+// SWITCH_TO_MANUAL_MODE_HEAT,
+// SWITCH_TO_MANUAL_MODE_COOL,
+// SWITCH_TO_MANUAL_MODE_AUTO,
 
-const char* const ACTION_P[] PROGMEM = {ON, OFF, S_TOGGLE};
+enum Action
+{
+  TURN_ON,
+  TURN_OFF,
+  TOGGLE,
+  AUTOMATIC_STAIRCASE,
+  INCREASE_TEMPERATURE,
+  DECREASE_TEMPERATURE,
+  TOGGLE_OFF_MANUAL_WEEKLY_SCHEDULE_MODES,
+  TOGGLE_MANUAL_WEEKLY_SCHEDULE_MODES,
+  TOGGLE_MANUAL_WEEKLY_SCHEDULE_MODES_HOLD_OFF
+};
+
+enum Event
+{
+  ON_PRESS,    // Triggered on transition to valueOnPress()
+  ON_RELEASE,  // Triggered on transition from valueOnPress()
+  ON_CHANGE,   // Triggered on all transitions
+  ON_HOLD,     // Triggered when button is hold
+  ON_MOTION_SENSOR
+};
+}  // namespace GUI
+}  // namespace Supla
+
+const char* const TRIGGER_P[] PROGMEM = {S_REACTION_ON_PRESS, S_REACTION_ON_RELEASE, S_REACTION_ON_CHANGE, S_REACTION_ON_HOLD,
+                                         S_REACTION_MOTION_SENSOR};
+
+#ifdef SUPLA_THERMOSTAT
+const char* const ACTION_P[] PROGMEM = {
+    ON, OFF, S_TOGGLE, S_REACTION_AUTOMATIC_STAIRCASE, "Zwiększ temperaturę", "Zmniejsz temperaturę", "Wyłącz/Ręczny/Program", "Ręczny/Program", "Przytrzymanie przełącz - Ręczny/Program"};
+#else
+const char* const ACTION_P[] PROGMEM = {ON, OFF, S_TOGGLE, S_REACTION_AUTOMATIC_STAIRCASE};
+#endif
+
+namespace Supla {
+namespace GUI {
+enum ThermostatType
+{
+  THERMOSTAT_OFF,
+  THERMOSTAT_HEAT,
+  THERMOSTAT_COOL,
+  THERMOSTAT_AUTO,
+  THERMOSTAT_DOMESTIC_HOT_WATER,
+  THERMOSTAT_DIFFERENTIAL
+};
+}  // namespace GUI
+}  // namespace Supla
+
+#ifdef SUPLA_THERMOSTAT
+const char* const THERMOSTAT_TYPE_P[] PROGMEM = {S_OFF, S_HEAT, S_COOL, S_AUTO, S_DOMESTIC_HOT_WATER, S_DIFFERENTIAL};
+#endif
 
 #ifdef SUPLA_VL53L0X
 const char* const STATE_VL53L0X_P[] PROGMEM = {OFF, "SENSE DEFAULT", "SENSE LONG RANGE", "SENSE HIGH SPEED", "SENSE HIGH ACCURACY"};
-enum STATE_VL53L0X {
-STATE_VL53L0X_SENSE_DEFAULT = 1,
-STATE_VL53L0X_SENSE_LONG_RANGE,
-STATE_VL53L0X_SENSE_HIGH_SPEED,
-STATE_VL53L0X_SENSE_HIGH_ACCURACY
+enum STATE_VL53L0X
+{
+  STATE_VL53L0X_SENSE_DEFAULT = 1,
+  STATE_VL53L0X_SENSE_LONG_RANGE,
+  STATE_VL53L0X_SENSE_HIGH_SPEED,
+  STATE_VL53L0X_SENSE_HIGH_ACCURACY
 };
 #endif
 
@@ -372,225 +385,6 @@ const char CONTROLL_MANUAL[] PROGMEM = S_MANUALLY;
 const char* const OLED_CONTROLL_P[] PROGMEM = {CONTROLL_NORMAL, CONTROLL_SLOW, CONTROLL_MANUAL};
 #endif
 
-enum conditioningType
-{
-  CONDITION_HEATING,
-  CONDITION_COOLING,
-  CONDITION_MOISTURIZING,
-  CONDITION_DRAINGE,
-  CONDITION_VOLTAGE,
-  CONDITION_TOTAL_CURRENT,
-  CONDITION_TOTAL_POWER_ACTIVE,
-  CONDITION_GPIO,
-  CONDITION_VOLTAGE_OPPOSITE,
-  CONDITION_TOTAL_CURRENT_OPPOSITE,
-  CONDITION_TOTAL_POWER_ACTIVE_OPPOSITE,
-  CONDITION_COUNT
-};
-
-enum sensorList
-{
-  NO_SENSORS = 0,
-  SENSOR_DS18B20,
-  SENSOR_DHT11,
-  SENSOR_DHT22,
-  SENSOR_SI7021_SONOFF,
-  SENSOR_HC_SR04,
-  SENSOR_BME280,
-  SENSOR_SHT3x,
-  SENSOR_SI7021,
-  SENSOR_MAX6675,
-  SENSOR_NTC_10K,
-  SENSOR_BMP280,
-  SENSOR_MPX_5XXX,
-  SENSOR_MPX_5XXX_PERCENT,
-  SENSOR_ANALOG_READING_MAP,
-  SENSOR_VL53L0X,
-  SENSOR_DIRECT_LINKS_SENSOR_THERMOMETR,
-  SENSOR_HDC1080,
-  SENSOR_HLW8012,
-  SENSOR_PZEM_V3,
-  SENSOR_CSE7766,
-  SENSOR_BINARY,
-  SENSOR_MAX31855,
-  SENSOR_VINDRIKTNING_IKEA,
-  SENSOR_PMSX003,
-  SENSOR_ADE7953,
-  SENSOR_BH1750,
-  COUNT_SENSOR_LIST
-};
-
-#if defined(GUI_SENSOR_SPI) || defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_1WIRE) || defined(GUI_SENSOR_OTHER) || defined(GUI_SENSOR_ANALOG)
-#define GUI_ALL_SENSOR
-#endif
-
-#if defined(GUI_OTHER_ENERGY) || defined(GUI_SENSOR_I2C_ENERGY_METER)
-#define GUI_ALL_ENERGY
-#endif
-
-#ifdef SUPLA_CONDITIONS
-const char* const CONDITIONS_TYPE_P[] PROGMEM = {
-#ifdef GUI_ALL_SENSOR
-    S_ON_CH_VAL_OFF_HEATING,
-    S_ON_CH_VAL_OFF_COOLING,
-    S_ON_2CH_VAL_OFF_HUMIDIFICATION,
-    S_ON_2CH_VAL_OFF_DRYING,
-#else
-    S_EMPTY, S_EMPTY, S_EMPTY, S_EMPTY,
-#endif
-
-#ifdef GUI_ALL_ENERGY
-    "ON > Napięcie[V] > OFF",
-    "ON > Natężenie[A] > OFF",
-    "ON > Moc czynna[W] > OFF",
-#else
-    S_EMPTY, S_EMPTY, S_EMPTY,
-#endif
-#ifdef SUPLA_LIMIT_SWITCH
-    "Stan GPIO",
-#else
-    S_EMPTY,
-#endif
-#ifdef GUI_ALL_ENERGY
-    "ON < Napięcie[V] < OFF",
-    "ON < Natężenie[A] < OFF",
-    "ON < Moc czynna[W] < OFF",
-#else
-    S_EMPTY, S_EMPTY, S_EMPTY,
-#endif
-};
-
-const char* const SENSOR_LIST_P[] PROGMEM = {
-    OFF,
-#ifdef SUPLA_DS18B20
-    S_DS18B20,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_DHT11
-    S_DHT11,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_DHT22
-    S_DHT22,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_SI7021_SONOFF
-    S_SI7021_SONOFF,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_HC_SR04
-    S_HC_SR04,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_BME280
-    S_BME280,
-#else
-    S_EMPTY,
-#endif
-#if defined(SUPLA_SHT3x) || defined(SUPLA_SHT_AUTODETECT)
-    S_SHT3X,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_SI7021
-    S_SI702,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_MAX6675
-    S_MAX6675,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_NTC_10K
-    S_NTC_10K,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_BMP280
-    S_BMP280,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_MPX_5XXX
-    S_MPX_5XXX,
-    S_MPX_5XXX_PERCENT,
-#else
-    S_EMPTY, S_EMPTY,
-#endif
-#ifdef SUPLA_ANALOG_READING_MAP
-    "ANALOG READING",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_VL53L0X
-    "VL53L0X",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_DIRECT_LINKS_SENSOR_THERMOMETR
-    "Direct Links Temp",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_HDC1080
-    "HDC1080",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_HLW8012
-    "HLW8012",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_PZEM_V_3
-    "PZEM-004T V3",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_CSE7766
-    "CSE7766",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_LIMIT_SWITCH
-    S_LIMIT_SWITCH,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_MAX31855
-    S_MAX31855,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_VINDRIKTNING_IKEA
-    S_VINDRIKTNING_IKEA,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_PMSX003
-    S_PMSX003_PM25,
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_ADE7953
-    "ADE7953",
-#else
-    S_EMPTY,
-#endif
-#ifdef SUPLA_BH1750
-    "BH1750",
-#else
-    S_EMPTY,
-#endif
-};
-#endif
-
 #ifdef SUPLA_DIRECT_LINKS_MULTI_SENSOR
 enum DIRECT_LINKS_TYPE
 {
@@ -598,13 +392,15 @@ enum DIRECT_LINKS_TYPE
   DIRECT_LINKS_TYPE_TEMP,
   DIRECT_LINKS_TYPE_TEMP_HYGR,
   DIRECT_LINKS_TYPE_PRESS,
-  DIRECT_LINKS_TYPE_ELECTRICITY_METER,
+  DIRECT_LINKS_TYPE_ONE_PHASE_ELECTRICITY_METER,
   DIRECT_LINKS_TYPE_DISTANCE,
   DIRECT_LINKS_TYPE_DEPTH,
+  DIRECT_LINKS_TYPE_ELECTRICITY_METER,
   DIRECT_LINKS_TYPE_COUNT
 };
 
-const char* const DIRECT_LINKS_TYPE_LIST_P[] PROGMEM = {S_OFF, S_TEMPERATURE, S_TEMP_HYGR, S_PRESS, S_ELECTRICITY_METER, S_DISTANCE, S_DEPTH};
+const char* const DIRECT_LINKS_TYPE_LIST_P[] PROGMEM = {S_OFF,      S_TEMPERATURE, S_TEMP_HYGR,        S_PRESS, S_ELECTRICITY_ONE_PHASE_METER,
+                                                        S_DISTANCE, S_DEPTH,       S_ELECTRICITY_METER};
 #endif
 
 #ifdef SUPLA_PUSHOVER
@@ -613,5 +409,38 @@ const char* const PUSHOVER_SOUND_LIST_P[] PROGMEM = {"Pushover",   "Bike",    "B
                                                      "Pianobar",   "Siren",   "Spacealarm", "Tugboat",      "Alien",     "Climb",
                                                      "Persistent", "Echo",    "Updown",     "Vibrate",      "None"};
 #endif
+
+enum BAUDRATE_UART
+{
+  BAUDRATE_1200,
+  BAUDRATE_2400,
+  BAUDRATE_4800,
+  BAUDRATE_9600,
+  BAUDRATE_19200,
+  BAUDRATE_38400
+};
+
+#if defined(SUPLA_MODBUS_SDM) || defined(SUPLA_MODBUS_SDM_ONE_PHASE)
+const char* const BAUDRATE_UART_LIST_P[] PROGMEM = {"1200", "2400", "4800", "9600", "19200", "38400"};
+#endif
+
+enum SaveResult
+{
+  NO_SAVE,
+  DATA_SAVE,
+  RESTART_MODULE,
+  DATA_ERASED_RESTART_DEVICE,
+  WRITE_ERROR_UNABLE_TO_READ_FILE_FS_PARTITION_MISSING,
+  DATA_SAVED_RESTART_MODULE,
+  WRITE_ERROR_BAD_DATA,
+  DATA_SAVE_MODE_CONFIG,
+  UPDATE_SUCCESS,
+  UPDATE_ERROR,
+  UPDATE_WAIT,
+  UPDATE_NO_UPDATES,
+  UPDATE_TOO_LESS_SPACE,
+  UPDATE_NEW_VERSION,
+  UPDATE_2STEP
+};
 
 #endif  // SuplaCommonPROGMEM_h

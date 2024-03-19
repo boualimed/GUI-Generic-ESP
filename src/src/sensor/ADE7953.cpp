@@ -13,6 +13,7 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+#ifdef SUPLA_ADE7953
 
 #include "ADE7953.h"
 
@@ -176,7 +177,7 @@ int32_t ADE7953::Ade7953Read(uint16_t reg) {
     Wire.endTransmission(0);
     Wire.requestFrom(ADE7953_ADDR, size);
     if (size <= Wire.available()) {
-      for (uint32_t i = 0; i < size; i++) {
+      for (int i = 0; i < size; i++) {
         response = response << 8 | Wire.read();  // receive DATA (MSB first)
       }
     }
@@ -314,3 +315,4 @@ void ADE7953::calibrate(double calibPower, double calibVoltage) {
 
 };  // namespace Sensor
 };  // namespace Supla
+#endif

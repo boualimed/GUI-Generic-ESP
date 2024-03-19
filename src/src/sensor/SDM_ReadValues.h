@@ -13,6 +13,7 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+#ifdef SUPLA_MODBUS_SDM
 
 #ifndef _Read_Values_SDM_h
 #define _Read_Values_SDM_h
@@ -28,6 +29,7 @@
 namespace Supla {
 namespace Sensor {
 
+// class SoftwareSerial;
 class ReadValuesSDM : public Element {
  public:
 #if defined(ESP8266)
@@ -35,24 +37,35 @@ class ReadValuesSDM : public Element {
 #else
   ReadValuesSDM(HardwareSerial& serial, int8_t pinRX, int8_t pinTX, long baud);
 #endif
+  // energy 1 == 0.00001 kWh  - one phase
+  float getFwdActEnergy();
+
+  // energy 1 == 0.00001 kWh  - one phase
+  float getRvrActEnergy();
+
+  // energy 1 == 0.00001 kWh  - one phase
+  float getFwdReactEnergy();
+
+  // energy 1 == 0.00001 kWh  - one phase
+  float getRvrReactEnergy();
 
   // energy 1 == 0.00001 kWh
-  float getFwdActEnergy(int phase = 0);
+  float getFwdActEnergy(int phase);
 
-    // energy 1 == 0.00001 kWh
+  // energy 1 == 0.00001 kWh
   float getFwdActEnergyTotal();
 
   // energy 1 == 0.00001 kWh
-  float getRvrActEnergy(int phase = 0);
+  float getRvrActEnergy(int phase);
 
   // energy 1 == 0.00001 kWh
-  float getFwdReactEnergy(int phase = 0);
+  float getFwdReactEnergy(int phase);
 
-    // energy 1 == 0.00001 kWh
+  // energy 1 == 0.00001 kWh
   float getFwdReactEnergyTotal();
 
   // energy 1 == 0.00001 kWh
-  float getRvrReactEnergy(int phase = 0);
+  float getRvrReactEnergy(int phase);
 
   // voltage 1 == 0.01 V
   float getVoltage(int phase = 0);
@@ -80,39 +93,23 @@ class ReadValuesSDM : public Element {
 
   float sdmRead(uint16_t reg);
 
-  uint16_t getErrCode(bool _clear = false) {
-    return sdm.getErrCode(_clear);
-  }
+  uint16_t getErrCode(bool _clear = false);
+  uint32_t getErrCount(bool _clear = false);
+  uint32_t getSuccCount(bool _clear = false);
+  void clearErrCode();
+  void clearErrCount();
+  void clearSuccCount();
 
-  uint32_t getErrCount(bool _clear = false) {
-    return sdm.getErrCount(_clear);
-  }
-
-  uint32_t getSuccCount(bool _clear = false) {
-    return sdm.getSuccCount(_clear);
-  }
-
-  void clearErrCode() {
-    sdm.clearErrCode();
-  }
-
-  void clearErrCount() {
-    sdm.clearErrCount();
-  }
-
-  void clearSuccCount() {
-    sdm.clearSuccCount();
-  }
-
- protected:
-  SDM sdm;  // config SDM
-
+ private:
 #if defined(ESP8266)
-  SoftwareSerial swSerSDM;  // config SoftwareSerial
+  SoftwareSerial swSerSDM;
 #endif
+
+  SDM sdm;
 };
 
 };  // namespace Sensor
 };  // namespace Supla
 
+#endif
 #endif

@@ -28,6 +28,7 @@
 #define S_UPDATE                  "Actualización"
 #define S_RESTART                 "Reiniciar"
 #define S_RETURN                  "Volver"
+#define S_CONDITION               "Condición"
 
 #define S_TEMPLATE_BOARD                                       "Modelos de placas"
 #define S_TYPE                                                 "Tipo"
@@ -37,7 +38,7 @@
 #define S_SENSORS_I2C                                          "SENSORES i2c"
 #define S_SENSORS_SPI                                          "SENSORES SPI"
 #define S_SENSORS_OTHER                                        "OTROS SENSORES"
-#define S_LED_BUTTON_CFG                                       "LED, CONFIGURACIÓN DE BOTÓN"
+#define S_CONFIGURATION                                       "LED, CONFIGURACIÓN DE BOTÓN"
 #define S_CFG_MODE                                             "Modo"
 #define S_QUANTITY                                             "CANTIDAD"
 #define S_GPIO_SETTINGS_FOR_RELAYS                             "Parámetros GPIO para los relés"
@@ -45,10 +46,11 @@
 #define S_RELAY_NR_SETTINGS                                    "Configuración del relé no. "
 #define S_STATE_CONTROL                                        "Control de estado"
 #define S_REACTION_AFTER_RESET                                 "Reacción después de reinicio"
+#define S_LIGHT_RELAY                                          "Sterowowanie światłem"
 #define S_GPIO_SETTINGS_FOR_BUTTONS                            "Parámetros GPIO para los botones"
 #define S_BUTTON                                               "BOTÓN"
 #define S_BUTTON_NR_SETTINGS                                   "Parámetros del botón no. "
-#define S_REACTION_TO                                          "Reacción a"
+#define S_REACTION                                             "Reacción"
 #define S_RELAY_CONTROL                                        "Control de relé"
 #define S_ACTION                                               "Action"
 #define S_GPIO_SETTINGS_FOR_LIMIT_SWITCH                       "Parámetros GPIO para el sensor de apertura"
@@ -98,25 +100,39 @@
 #define S_STATUS_NETWORK_DISCONNECTED    "Sin conexión a la red"
 
 //#### SuplaCommonPROGMEM.h ####
-#define S_OFF                           "APAGADO"
-#define S_ON                            "ENCENDIDO"
-#define S_TOGGLE                        "TOGGLE"
-#define S_LOW                           "BAJO"
-#define S_HIGH                          "ALTO"
-#define S_POSITION_MEMORY               "RECORDAR ESTADO"
-#define S_REACTION_ON_PRESS             "AL PRESIONAR"
-#define S_REACTION_ON_RELEASE           "AL SOLTAR"
-#define S_REACTION_ON_CHANGE            "AL CAMBIAR DE ESTADO"
-#define S_REACTION_ON_HOLD              "EN ESPERA"
-#define S_CFG_10_PRESSES                "AL PRESIONAR 10 VECES"
-#define S_5SEK_HOLD                     "AL MANTENER PRESIONADO 5 SEGUNDOS"
-#define S_NORMAL                        "NORMAL"
-#define S_SLOW                          "LENTO"
-#define S_MANUALLY                      "A MANO"
-#define S_ON_CH_VAL_OFF_HEATING         "ON > valor del cana l> OFF - calefacción"
-#define S_ON_CH_VAL_OFF_COOLING         "ON < valor del canal < OFF - refrigeración"
-#define S_ON_2CH_VAL_OFF_HUMIDIFICATION "ON > valor del segundo canal > OFF - humidificación"
-#define S_ON_2CH_VAL_OFF_DRYING         "ON < valor del segundo canal < OFF - secado"
+#define S_OFF                          "APAGADO"
+#define S_ON                           "ENCENDIDO"
+#define S_TOGGLE                       "TOGGLE"
+#define S_LOW                          "BAJO"
+#define S_HIGH                         "ALTO"
+#define S_POSITION_MEMORY              "RECORDAR ESTADO"
+#define S_REACTION_ON_PRESS            "AL PRESIONAR"
+#define S_REACTION_ON_RELEASE          "AL SOLTAR"
+#define S_REACTION_ON_CHANGE           "AL CAMBIAR DE ESTADO"
+#define S_REACTION_ON_HOLD             "EN ESPERA"
+#define S_REACTION_MOTION_SENSOR       "MOTION SENSOR"
+#define S_REACTION_AUTOMATIC_STAIRCASE "AUTOMATIC STAIRCASE"
+#define S_CFG_10_PRESSES               "AL PRESIONAR 10 VECES"
+#define S_5SEK_HOLD                    "AL MANTENER PRESIONADO 5 SEGUNDOS"
+#define S_NORMAL                       "NORMAL"
+#define S_SLOW                         "LENTO"
+#define S_MANUALLY                     "A MANO"
+
+#ifdef SUPLA_CONDITIONS
+#define S_CONDITIONING     "Acondicionamiento"
+#define S_TURN_ON_WHEN     "ON si valor"
+#define S_SWITCH_ON_VALUE  "Valor de conmutación"
+#define S_SWITCH_OFF_VALUE "Valor desactivado"
+
+#define S_ON_LESS    "más pequeño"
+#define S_ON_GREATER "más grande"
+
+#define S_CHANNEL_VALUE "canal"
+#define S_HUMIDITY      "humedad"
+#define S_VOLTAGE       "voltaje [V]"
+#define S_CURRENT       "actual [A]"
+#define S_POWER         "potencia activa [W]"
+#endif
 
 //#### SuplaWebServer.cpp ####
 #define S_LIMIT_SWITCHES "FINALES DE CARRERA"
@@ -163,11 +179,7 @@
 #define S_STATE                   "Expresar"
 #define S_MESSAGE                 "Mensaje"
 #define S_DIRECT_LINKS            "Enlaces directos"
-#define S_CONDITIONING            "Acondicionamiento"
 #define S_SENSOR                  "Sensor"
-#define S_CONDITION               "Condición"
-#define S_SWITCH_ON_VALUE         "valor de encendido"
-#define S_SWITCH_OFF_VALUE        "valor de desconexión"
 #define S_SETTINGS_FOR_RELAYS     "Configuraciones para relés"
 
 //#### SuplaHTTPUpdateServer.cpp ####
@@ -204,6 +216,28 @@
 
 #ifdef SUPLA_PUSHOVER
 #define S_SOUND "Sound"
+#endif
+
+#define S_BAUDRATE "Baudrate"
+
+#ifdef SUPLA_THERMOSTAT
+#define S_HEAT                     "Heat"
+#define S_COOL                     "Cool"
+#define S_DOMESTIC_HOT_WATER       "Domestic hot water"
+#define S_DIFFERENTIAL             "Differential"
+#define S_THERMOSTAT               "Thermostat"
+#define S_THERMOSTAT               "Thermostat"
+#define S_MAIN_THERMOMETER_CHANNEL "Main thermometrer"
+#define S_AUX_THERMOMETER_CHANNEL  "Aux thermometrer"
+#define S_HISTERESIS               "Histeresis"
+#endif
+
+#ifdef SUPLA_CC1101
+#define S_WMBUS_METER "Meter"
+#define S_WMBUS_SENSOR_TYPE "Sensor type"
+#define S_WMBUS_SENSOR_ID "Sensor id"
+#define S_WMBUS_SENSOR_KEY "Sensor key"
+#define S_WMBUS_SENSOR_PROP "Sensor property"
 #endif
 
 #endif  // _LANGUAGE_ES_S_H_

@@ -20,7 +20,7 @@
 #define SRC_SUPLA_NETWORK_ENC28J60_H_
 
 #include <Arduino.h>
-#include <UIPEthernet.h>
+#include <EthernetENC.h>
 
 #include <supla/log_wrapper.h>
 
@@ -32,9 +32,8 @@
 namespace Supla {
 class ENC28J60 : public Supla::Network {
  public:
-  explicit ENC28J60(uint8_t mac[6], IPAddress *ip = NULL) : Network(ip) {
+  explicit ENC28J60(uint8_t mac[6], unsigned char *ip = NULL) : Network(ip) {
     memcpy(this->mac, mac, 6);
-    sslEnabled = false;
   }
 
   void disable() override {
@@ -45,6 +44,7 @@ class ENC28J60 : public Supla::Network {
   }
 
   void setup() override {
+    setSSLEnabled(false);  // no SSL support on Arduino MEGA target
     Serial.println(F("Connecting to network..."));
     if (useLocalIp) {
       Ethernet.begin(mac, localIp);
@@ -61,10 +61,6 @@ class ENC28J60 : public Supla::Network {
     Serial.print(F("dnsServerIP: "));
     Serial.println(Ethernet.dnsServerIP());
   }
-
-  void setSSLEnabled(bool enabled) override {
-    (void)(enabled);
-  };
 
  protected:
   uint8_t mac[6] = {};

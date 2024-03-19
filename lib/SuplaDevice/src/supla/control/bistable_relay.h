@@ -33,6 +33,14 @@ namespace Supla {
 namespace Control {
 class BistableRelay : public Relay {
  public:
+  BistableRelay(Supla::Io *io,
+                int pin,
+                int statusPin = -1,
+                bool statusPullUp = true,
+                bool statusHighIsOn = true,
+                bool highIsOn = true,
+                _supla_int_t functions =
+                    (0xFF ^ SUPLA_BIT_FUNC_CONTROLLINGTHEROLLERSHUTTER));
   BistableRelay(int pin,
                 int statusPin = -1,
                 bool statusPullUp = true,
@@ -40,25 +48,26 @@ class BistableRelay : public Relay {
                 bool highIsOn = true,
                 _supla_int_t functions =
                     (0xFF ^ SUPLA_BIT_FUNC_CONTROLLINGTHEROLLERSHUTTER));
-  void onInit();
-  void iterateAlways();
-  int handleNewValueFromServer(TSD_SuplaChannelNewValue *newValue);
-  void turnOn(_supla_int_t duration = 0);
-  void turnOff(_supla_int_t duration = 0);
-  void toggle(_supla_int_t duration = 0);
+  void onInit() override;
+  void iterateAlways() override;
+  int handleNewValueFromServer(TSD_SuplaChannelNewValue *newValue) override;
+  void turnOn(_supla_int_t duration = 0) override;
+  void turnOff(_supla_int_t duration = 0) override;
+  void toggle(_supla_int_t duration = 0) override;
 
-  virtual bool isOn();
+  bool isOn() override;
   bool isStatusUnknown();
 
  protected:
   void internalToggle();
 
-  int statusPin;
-  bool statusPullUp;
-  bool statusHighIsOn;
-  uint64_t disarmTimeMs;
-  uint64_t lastReadTime;
-  bool busy;
+  uint32_t disarmTimeMs = 0;
+  uint32_t lastReadTime = 0;
+
+  int16_t statusPin = -1;
+  bool statusPullUp = true;
+  bool statusHighIsOn = true;
+  bool busy = false;
 };
 
 };  // namespace Control

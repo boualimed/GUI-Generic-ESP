@@ -26,35 +26,47 @@
 #include "../local_action.h"
 
 namespace Supla {
+
+class Io;
+
 namespace Control {
 
 enum StateResults { PRESSED, RELEASED, TO_PRESSED, TO_RELEASED };
 
 class ButtonState {
  public:
+  ButtonState(Supla::Io *io, int pin, bool pullUp, bool invertLogic);
   ButtonState(int pin, bool pullUp, bool invertLogic);
-  int update();
-  void init();
+  enum StateResults update();
+  enum StateResults getLastState() const;
+  void init(int buttonNumber);
 
   void setSwNoiseFilterDelay(unsigned int newDelayMs);
   void setDebounceDelay(unsigned int newDelayMs);
+  int getGpio() const;
 
  protected:
-  int valueOnPress();
+  int valueOnPress() const;
 
-  uint64_t debounceTimeMs;
-  uint64_t filterTimeMs;
-  unsigned int debounceDelayMs;
-  unsigned int swNoiseFilterDelayMs;
-  int pin;
-  int8_t newStatusCandidate;
-  int8_t prevState;
-  bool pullUp;
-  bool invertLogic;
+  Supla::Io *io = nullptr;
+
+  uint16_t debounceDelayMs = 50;
+  uint16_t swNoiseFilterDelayMs = 20;
+  uint32_t debounceTimestampMs = 0;
+  uint32_t filterTimestampMs = 0;
+  int16_t pin = -1;
+  int8_t newStatusCandidate = 0;
+  int8_t prevState = -1;
+  bool pullUp = false;
+  bool invertLogic = false;
 };
 
 class SimpleButton : public Element, public LocalAction {
  public:
+  explicit SimpleButton(Supla::Io *io,
+                        int pin,
+                        bool pullUp = false,
+                        bool invertLogic = false);
   explicit SimpleButton(int pin, bool pullUp = false, bool invertLogic = false);
 
   void onTimer() override;
@@ -62,7 +74,12 @@ class SimpleButton : public Element, public LocalAction {
   void setSwNoiseFilterDelay(unsigned int newDelayMs);
   void setDebounceDelay(unsigned int newDelayMs);
 
+  enum StateResults getLastState() const;
+
  protected:
+  // Returns unique button number (current implementation returns configured
+  // GPIO)
+  virtual int8_t getButtonNumber() const;
   ButtonState state;
 };
 

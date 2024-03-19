@@ -22,8 +22,6 @@
 #include <supla/network/client.h>
 #include <esp_tls.h>
 
-class SuplaDeviceClass;
-
 namespace Supla {
 class Mutex;
 
@@ -44,8 +42,8 @@ class EspIdfClient : public Client {
   int readImp(uint8_t *buf, std::size_t size) override;
 
   Supla::Mutex *mutex = nullptr;
-  SuplaDeviceClass *sdc = nullptr;
   bool isConnected = false;
+  bool firstConnectAfterInit = true;
   esp_tls_t *client = nullptr;
   uint16_t timeoutMs = 10000;
   int lastConnErr = 0;

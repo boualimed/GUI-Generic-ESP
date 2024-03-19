@@ -13,12 +13,14 @@ Copyright (C) krycha88
  along with this program; if not, write to the Free Software
  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+#ifdef SUPLA_MAX31855
 
 #ifndef _max_31855_h
 #define _max_31855_h
 
 #include <Adafruit_MAX31855.h>
 #include <Arduino.h>
+#include <supla/sensor/thermometer.h>
 
 namespace Supla {
 namespace Sensor {
@@ -44,8 +46,7 @@ class MAX31855 : public Thermometer {
     return value;
   }
 
- private:
-  void onInit() {
+  void onInit() override {
     channel.setNewValue(getValue());
   }
 
@@ -57,4 +58,5 @@ class MAX31855 : public Thermometer {
 };  // namespace Sensor
 };  // namespace Supla
 
+#endif
 #endif

@@ -61,8 +61,15 @@ void GUIESPWifi::setup() {
   if (!wifiConfigured) {
     WiFi.setHostname(hostname);  // ESP32 requires setHostname to be called before begin...
     WiFi.softAPdisconnect(true);
-    WiFi.setAutoConnect(false);
-    WiFi.persistent(false);
+    WiFi.setAutoConnect(true);
+    WiFi.persistent(true);
+#ifdef ARDUINO_ARCH_ESP8266
+    WiFi.setSleepMode(WIFI_NONE_SLEEP);
+    // https://github.com/esp8266/Arduino/issues/8412
+    // https://forum.supla.org/viewtopic.php?t=11999
+    // https://forum.supla.org/viewtopic.php?p=167849#p167849
+    WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+#endif
 
     wifiConfigured = true;
   }
@@ -80,11 +87,13 @@ void GUIESPWifi::setup() {
 
   if (mode == Supla::DEVICE_MODE_CONFIG) {
     SUPLA_LOG_INFO("WiFi: enter config mode with SSID: \"%s\"", getAPName().c_str());
-    if (getCountChannels() == 0) {
+    if (getCountChannels() == 0 || strcmp(Supla::Channel::reg_dev.ServerName, DEFAULT_SERVER) == 0) {
+      SUPLA_LOG_INFO("WiFi: WIFI_AP_STA");
       WiFi.mode(WIFI_AP_STA);
       WiFi.begin(ssid, password);
     }
     else {
+      SUPLA_LOG_INFO("WiFi: WIFI_MODE_AP");
       WiFi.mode(WIFI_MODE_AP);
     }
 
@@ -137,19 +146,4 @@ void GUIESPWifi::setPassword(const char *wifiPassword) {
     strncpy(password, wifiPassword, MAX_WIFI_PASSWORD_SIZE);
   }
 }
-
-const String GUIESPWifi::getAPName() {
-  uint8_t mac[6] = {};
-  char macStr[12 + 6] = {};
-  if (Supla::Network::GetMacAddr(mac)) {
-    generateHexString(mac, macStr, 6);
-  }
-
-  String cstr = "SUPLA-GUI-Generic-";
-  cstr.reserve(32);
-  cstr += macStr;
-
-  return cstr.c_str();
-}
-
 };  // namespace Supla

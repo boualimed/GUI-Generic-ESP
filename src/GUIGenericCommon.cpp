@@ -16,6 +16,7 @@
 
 #include "GUIGenericCommon.h"
 #include "SuplaDeviceGUI.h"
+#include <supla/tools.h>
 
 uint8_t *HexToBytes(String _value) {
   int size = 16;
@@ -55,6 +56,9 @@ uint8_t getCountSensorChannels() {
       if (channel->getChannelType() == SUPLA_CHANNELTYPE_PRESSURESENSOR) {
         maxFrame += 1;
       }
+      if (channel->getChannelType() == SUPLA_CHANNELTYPE_GENERAL_PURPOSE_MEASUREMENT) {
+        maxFrame += 1;
+      }
     }
 
     if (element->getSecondaryChannel()) {
@@ -68,6 +72,16 @@ uint8_t getCountSensorChannels() {
   return maxFrame;
 }
 
+uint8_t getCountActiveThermostat() {
+  uint8_t activeThermostatOled = 0;
+  for (auto element = Supla::Element::begin(); element != nullptr; element = element->next()) {
+    if (element->getChannel() && element->getChannel()->getChannelType() == SUPLA_CHANNELTYPE_HVAC) {
+      activeThermostatOled++;
+    }
+  }
+  return activeThermostatOled;
+}
+
 int getCountChannels() {
   int count = 0;
   for (auto element = Supla::Element::begin(); element != nullptr; element = element->next()) {
@@ -77,22 +91,22 @@ int getCountChannels() {
   return count;
 }
 
-uint32_t lowestRAM = 0;
-uint32_t lowestFreeStack = 0;
+void printFreeMemory(const char *location) {
+  size_t freeMemory = ESP.getFreeHeap();
 
-void checkRAM() {
-  uint32_t freeRAM = ESP.getFreeHeap();
-  Serial.print(F("freeRAM: "));
-  Serial.println(freeRAM);
-  if (freeRAM <= lowestRAM) {
-    lowestRAM = freeRAM;
+  SUPLA_LOG_DEBUG("Free memory at %s: %u bytes", location, freeMemory);
+}
+
+const String getAPName() {
+  uint8_t mac[6] = {};
+  char macStr[12 + 6] = {};
+  if (Supla::Network::GetMainMacAddr(mac)) {
+    generateHexString(mac, macStr, 6);
   }
-#ifdef ARDUINO_ARCH_ESP8266
-  uint32_t freeStack = ESP.getFreeContStack();
-  Serial.print(F("freeStack: "));
-  Serial.println(freeStack);
-  if (freeStack <= lowestFreeStack) {
-    lowestFreeStack = freeStack;
-  }
-#endif
+
+  String cstr = "SUPLA-GUI-Generic-";
+  cstr.reserve(32);
+  cstr += macStr;
+
+  return cstr.c_str();
 }

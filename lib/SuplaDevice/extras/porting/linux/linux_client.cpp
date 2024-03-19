@@ -27,7 +27,9 @@
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-
+#include <net/if.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "linux_client.h"
 
@@ -96,6 +98,7 @@ int Supla::LinuxClient::connectImp(const char *server, uint16_t port) {
     if (isConnected) {
       break;
     }
+    srcIp = 0;
     close(connectionFd);
     connectionFd = -1;
   }
@@ -103,6 +106,7 @@ int Supla::LinuxClient::connectImp(const char *server, uint16_t port) {
   freeaddrinfo(addresses);
 
   if (connectionFd == -1) {
+    srcIp = 0;
     SUPLA_LOG_ERROR("%s: %s", server, strerror(err));
     return 0;
   }
@@ -144,6 +148,21 @@ int Supla::LinuxClient::connectImp(const char *server, uint16_t port) {
   }
 
   fcntl(connectionFd, F_SETFL, O_NONBLOCK);
+
+  // store connection source IP address
+  struct sockaddr_in addr = {};
+  socklen_t addrLen = sizeof(addr);
+  getsockname(connectionFd, (struct sockaddr *)&addr, &addrLen);
+  struct ifreq ifr = {};
+  strncpy(ifr.ifr_name, inet_ntoa(addr.sin_addr), IFNAMSIZ);
+  srcIp = addr.sin_addr.s_addr;
+  uint8_t ipArr[4];
+  for (int i = 0; i < 4; i++) {
+    ipArr[i] = (srcIp >> (i * 8)) & 0xFF;
+  }
+
+  SUPLA_LOG_INFO("Connected via IP %d.%d.%d.%d", ipArr[0], ipArr[1],
+      ipArr[2], ipArr[3]);
 
   return 1;
 }
@@ -212,6 +231,20 @@ int Supla::LinuxClient::readImp(uint8_t *buf, size_t size) {
         }
         case SSL_ERROR_ZERO_RETURN: {
           SUPLA_LOG_INFO("Connection closed by peer");
+          stop();
+          break;
+        }
+        case SSL_ERROR_SYSCALL: {
+          SUPLA_LOG_WARNING(
+              "Client: SSL_ERROR_SYSCALL non-recoverable, fatal I/O error"
+              " occurred (errno: %d)", errno);
+          stop();
+          break;
+        }
+        case SSL_ERROR_SSL: {
+          SUPLA_LOG_WARNING(
+              "Client: SSL_ERROR_SSL non-recoverable, fatal error in the SSL "
+              "library occurred");
           stop();
           break;
         }

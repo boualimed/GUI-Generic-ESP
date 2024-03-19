@@ -17,39 +17,42 @@
 #include "Markup.h"
 #include "SuplaCommonPROGMEM.h"
 
-void addForm(String& html, const String& method, const String& action) {
-  html += "<form method='" + method + "' action='" + action + "'>";
+void addForm(const String& method, const String& action) {
+  WebServer->sendContent(F("<form method='"));
+  WebServer->sendContent(method);
+  WebServer->sendContent(F("' action='"));
+  WebServer->sendContent(action);
+  WebServer->sendContent(F("'>"));
 }
 
-void addFormEnd(String& html) {
-  html += "</form>";
+void addFormEnd() {
+  WebServer->sendContent(F("</form>"));
 }
 
-void addFormHeader(String& html, const String& name) {
-  html += F("<div class='w'>");
+void addFormHeader(const String& name) {
+  WebServer->sendContent(F("<div class='w'>"));
   if (name != "\n") {
-    html += F("<h3>");
-    html += name;
-    html += F("</h3>");
+    WebServer->sendContent(F("<h3>"));
+    WebServer->sendContent(name);
+    WebServer->sendContent(F("</h3>"));
   }
 }
 
-void addFormHeaderEnd(String& html) {
-  html += F("</div>");
+void addFormHeaderEnd() {
+  WebServer->sendContent(F("</div>"));
 }
 
-void addBr(String& html) {
-  html += F("<br>");
+void addBr() {
+  WebServer->sendContent(F("<br>"));
 }
 
-void addLabel(String& html, const String& name) {
-  html += F("<i><label>");
-  html += name;
-  html += F("</label></i>");
+void addLabel(const String& name) {
+  WebServer->sendContent(F("<i><label>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label></i>"));
 }
 
-void addTextBox(String& html,
-                const String& input_id,
+void addTextBox(const String& input_id,
                 const String& name,
                 const String& value,
                 const String& placeholder,
@@ -60,55 +63,53 @@ void addTextBox(String& html,
                 bool password,
                 bool underline) {
   if (underline) {
-    html += F("<i>");
+    WebServer->sendContent(F("<i>"));
   }
   else {
-    html += F("<i style='border-bottom:none !important;'>");
+    WebServer->sendContent(F("<i style='border-bottom:none !important;'>"));
   }
 
-  html += F("<input name='");
-  html += input_id;
+  WebServer->sendContent(F("<input name='"));
+  WebServer->sendContent(input_id);
   if (password) {
     if (ConfigESP->configModeESP != Supla::DEVICE_MODE_NORMAL) {
-      html += F("' type='password");
+      WebServer->sendContent(F("' type='password"));
     }
   }
 
-  html += F("' value='");
+  WebServer->sendContent(F("' value='"));
   if (value != placeholder) {
-    html += value;
+    WebServer->sendContent(value);
   }
 
   if (placeholder != "") {
-    html += F("' placeholder='");
-    html += placeholder;
+    WebServer->sendContent(F("' placeholder='"));
+    WebServer->sendContent(placeholder);
   }
 
   if (minlength > 0) {
-    html += F("' minlength='");
-    html += minlength;
+    WebServer->sendContent(F("' minlength='"));
+    WebServer->sendContent(minlength);
   }
   if (maxlength > 0) {
-    html += F("' maxlength='");
-    html += maxlength;
+    WebServer->sendContent(F("' maxlength='"));
+    WebServer->sendContent(maxlength);
   }
-  html += F("'");
+  WebServer->sendContent(F("'"));
   if (readonly) {
-    html += F(" readonly");
+    WebServer->sendContent(F(" readonly"));
   }
 
   if (required) {
-    html += F(" required");
+    WebServer->sendContent(F(" required"));
   }
 
-  html += F("><label>");
-  html += name;
-  html += F("</label></i> ");
-  WebServer->sendHeader();
+  WebServer->sendContent(F("><label>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label></i> "));
 }
 
-void addTextBox(String& html,
-                const String& input_id,
+void addTextBox(const String& input_id,
                 const String& name,
                 uint8_t value_key,
                 const String& placeholder,
@@ -118,229 +119,239 @@ void addTextBox(String& html,
                 bool readonly,
                 bool password) {
   String value = String(ConfigManager->get(value_key)->getValue());
-  return addTextBox(html, input_id, name, value, placeholder, minlength, maxlength, required, readonly, password);
+  return addTextBox(input_id, name, value, placeholder, minlength, maxlength, required, readonly, password);
 }
 
-void addTextBox(
-    String& html, const String& input_id, const String& name, uint8_t value_key, int minlength, int maxlength, bool required, bool readonly) {
-  return addTextBox(html, input_id, name, value_key, "", minlength, maxlength, required, readonly, false);
+void addTextBox(const String& input_id, const String& name, uint8_t value_key, int minlength, int maxlength, bool required, bool readonly) {
+  return addTextBox(input_id, name, value_key, "", minlength, maxlength, required, readonly, false);
 }
 
-void addTextBox(
-    String& html, const String& input_id, const String& name, const String& value, int minlength, int maxlength, bool required, bool readonly) {
-  return addTextBox(html, input_id, name, value, "", minlength, maxlength, required, readonly, false);
+void addTextBox(const String& input_id, const String& name, const String& value, int minlength, int maxlength, bool required, bool readonly) {
+  return addTextBox(input_id, name, value, "", minlength, maxlength, required, readonly, false);
 }
 
-void addTextBox(String& html, const String& value) {
-  html += F("<style><input[name='board']{padding-left: 48px;width: calc(100% - 52px);}</style>");
-  html += F("<p style='color:#000;'>");
-  html += value;
-  html += F("</p>");
+void addTextBox(const String& value) {
+  WebServer->sendContent(F("<style><input[name='board']{padding-left: 48px;width: calc(100% - 52px);}</style>"));
+  WebServer->sendContent(F("<p style='color:#000;'>"));
+  WebServer->sendContent(value);
+  WebServer->sendContent(F("</p>"));
 }
-void addTextBoxPassword(String& html, const String& input_id, const String& name, uint8_t value_key, int minlength, int maxlength, bool required) {
-  return addTextBox(html, input_id, name, value_key, "", minlength, maxlength, required, false, true);
+void addTextBoxPassword(const String& input_id, const String& name, uint8_t value_key, int minlength, int maxlength, bool required) {
+  return addTextBox(input_id, name, value_key, "", minlength, maxlength, required, false, true);
 }
 
-void addCheckBox(String& html, const String& input_id, const String& name, bool checked) {
-  html += F("<i><label>");
-  html += name;
-  html += F("</label><input type='checkbox' name='");
-  html += input_id;
-  html += F("'");
+void addCheckBox(const String& input_id, const String& name, bool checked) {
+  WebServer->sendContent(F("<i><label>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label><input type='checkbox' name='"));
+  WebServer->sendContent(input_id);
+  WebServer->sendContent(F("'"));
   if (checked) {
-    html += F(" checked");
+    WebServer->sendContent(F(" checked"));
   }
-  html += F("></i>");
+  WebServer->sendContent(F("></i>"));
 }
 
-void addNumberBox(String& html, const String& input_id, const String& name, uint8_t value_key, int max) {
-  html += F("<i><label>");
-  html += name;
-  html += F("</label><input name='");
-  html += input_id;
-  html += F("' type='number' placeholder='0' step='1' min='0'");
+void addNumberBox(const String& input_id, const String& name, uint8_t value_key, int max) {
+  addNumberBox(input_id, name, String(ConfigManager->get(value_key)->getValue()).c_str(), max);
+}
+
+void addNumberBox(const String& input_id, const String& name, const String& value, int max) {
+  WebServer->sendContent(F("<i><label>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label><input name='"));
+  WebServer->sendContent(input_id);
+  WebServer->sendContent(F("' type='number' placeholder='0' step='1' min='0'"));
 
   if (max >= 0) {
-    html += F(" max='");
-    html += String(max);
-    html += F("'");
+    WebServer->sendContent(F(" max='"));
+    WebServer->sendContent(max);
+    WebServer->sendContent(F("'"));
   }
 
-  html += F(" value='");
-  html += String(ConfigManager->get(value_key)->getValue());
-  html += F("'></i>");
-  WebServer->sendHeader();
+  WebServer->sendContent(F(" value='"));
+  WebServer->sendContent(value);
+  WebServer->sendContent(F("'></i>"));
 }
 
-void addNumberBox(String& html, const String& input_id, const String& name, const String& placeholder, bool required, const String& value) {
-  html += F("<i><label>");
-  html += name;
-  html += F("</label><input name='");
-  html += input_id;
-  html += F("' type='number'");
-  if (!placeholder.isEmpty()) {
-    html += F(" placeholder='");
-    html += placeholder.c_str();
-    html += F("'");
+void addNumberBox(const String& input_id, const String& name, const String& placeholder, bool required, const String& value, bool underline) {
+  if (underline) {
+    WebServer->sendContent(F("<i>"));
   }
-  html += F(" step='0.01' value='");
-  html += value.c_str();
-  html += F("'");
+  else {
+    WebServer->sendContent(F("<i style='border-bottom:none !important;'>"));
+  }
+  WebServer->sendContent(F("<label>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label><input name='"));
+  WebServer->sendContent(input_id);
+  WebServer->sendContent(F("' type='number'"));
+  if (!placeholder.isEmpty()) {
+    WebServer->sendContent(F(" placeholder='"));
+    WebServer->sendContent(placeholder.c_str());
+    WebServer->sendContent(F("'"));
+  }
+  WebServer->sendContent(F(" step='0.01' value='"));
+  WebServer->sendContent(value.c_str());
+  WebServer->sendContent(F("'"));
 
   if (required) {
-    html += F(" required");
+    WebServer->sendContent(F(" required"));
   }
 
-  html += F("></i>");
-  WebServer->sendHeader();
+  WebServer->sendContent(F("></i>"));
 }
 
-void addLinkBox(String& html, const String& name, const String& url) {
-  html += F("<i>");
-  html += F("<label>");
-  html += F("<a href='");
-  html += PATH_START;
-  html += url;
-  html += F("'>");
-  html += name;
-  // html += FPSTR(ICON_EDIT);
-  html += F("</a>");
-  html += F("</label>");
-  html += F("</i>");
-  WebServer->sendHeader();
+void addLinkBox(const String& name, const String& url) {
+  WebServer->sendContent(F("<i>"));
+  WebServer->sendContent(F("<label>"));
+  WebServer->sendContent(F("<a href='"));
+  WebServer->sendContent(PATH_START);
+  WebServer->sendContent(url);
+  WebServer->sendContent(F("'>"));
+  WebServer->sendContent(name);
+  // WebServer->sendContent(F(FPSTR(ICON_EDIT)));
+  WebServer->sendContent(F("</a>"));
+  WebServer->sendContent(F("</label>"));
+  WebServer->sendContent(F("</i>"));
 }
 
-void addListGPIOLinkBox(String& html, const String& input_id, const String& name, const String& url, uint8_t function) {
-  addListGPIOBox(html, input_id, name, function, 0, true, url, true);
+void addHyperlink(const String& name, const String& url) {
+  WebServer->sendContent(F("<i>"));
+  WebServer->sendContent(F("<label>"));
+  WebServer->sendContent(F("<a href='"));
+  WebServer->sendContent(url);
+  WebServer->sendContent(F("' target='_self'>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</a>"));
+  WebServer->sendContent(F("</label>"));
+  WebServer->sendContent(F("</i>"));
 }
 
-void addListGPIOLinkBox(String& html, const String& input_id, const String& name, const String& url, uint8_t function, uint8_t nr, bool no_number) {
-  addListGPIOBox(html, input_id, name, function, nr, true, url, no_number);
+void addListGPIOLinkBox(const String& input_id, const String& name, const String& url, uint8_t function) {
+  addListGPIOBox(input_id, name, function, 0, true, url, true);
 }
 
-void addListGPIOLinkBox(String& html, const String& input_id, const String& name, const String& url, uint8_t function, uint8_t nr) {
-  addListGPIOBox(html, input_id, name, function, nr, true, url);
+void addListGPIOLinkBox(const String& input_id, const String& name, const String& url, uint8_t function, uint8_t nr, bool no_number) {
+  addListGPIOBox(input_id, name, function, nr, true, url, no_number);
 }
 
-void addListGPIOBox(String& html, const String& input_id, const String& name, uint8_t function) {
-  addListGPIOBox(html, input_id, name, function, 0, true, "", true);
+void addListGPIOLinkBox(const String& input_id, const String& name, const String& url, uint8_t function, uint8_t nr) {
+  addListGPIOBox(input_id, name, function, nr, true, url);
 }
 
-void addListGPIOBox(
-    String& html, const String& input_id, const String& name, uint8_t function, uint8_t nr, bool underline, const String& url, bool no_number) {
-  uint8_t gpio;
+void addListGPIOBox(const String& input_id, const String& name, uint8_t function) {
+  addListGPIOBox(input_id, name, function, 0, true, "", true);
+}
 
-  gpio = ConfigESP->getGpio(nr, function);
+void addListGPIOBox(const String& input_id, const String& name, uint8_t function, uint8_t nr, bool underline, const String& url, bool no_number) {
+  uint8_t gpio = ConfigESP->getGpio(nr, function);
 
-  if (underline) {
-    html += F("<i>");
-  }
-  else {
-    html += F("<i style='border-bottom:none !important;'>");
-  }
-  html += F("<label>");
+  WebServer->sendContent(underline ? F("<i>") : F("<i style='border-bottom:none !important;'>"));
+  WebServer->sendContent(F("<label>"));
 
   if (!url.isEmpty() && gpio != OFF_GPIO) {
-    html += F("<a href='");
-    html += PATH_START;
-    html += url;
-    html += nr;
-    html += F("'>");
+    WebServer->sendContent(F("<a href='"));
+    WebServer->sendContent(PATH_START);
+    WebServer->sendContent(url);
+    WebServer->sendContent(nr);
+    WebServer->sendContent(F("'>"));
 
     if (!no_number) {
-      html += nr + 1;
-      html += F(".");
+      WebServer->sendContent(nr + 1);
+      WebServer->sendContent(F("."));
     }
 
-    html += F(" ");
-    html += name;
-    html += FPSTR(ICON_EDIT);
-    html += F("</a>");
-    WebServer->sendHeader();
+    WebServer->sendContent(F(" "));
+    WebServer->sendContent(name);
+    WebServer->sendContent(F("</a>"));
   }
   else {
     if (!no_number) {
-      html += nr + 1;
-      html += F(".");
+      WebServer->sendContent(nr + 1);
+      WebServer->sendContent(F("."));
     }
 
-    html += F(" ");
-    html += name;
+    WebServer->sendContent(F(" "));
+    WebServer->sendContent(name);
   }
 
-  html += F("</label>");
-
-  html += F("<select name='");
-  html += input_id;
-  html += nr;
-  html += F("'>");
+  WebServer->sendContent(F("</label>"));
+  WebServer->sendContent(F("<select name='"));
+  WebServer->sendContent(input_id);
+  WebServer->sendContent(nr);
+  WebServer->sendContent(F("'>"));
 
   if (function == FUNCTION_RELAY && nr < MAX_VIRTUAL_RELAY)
-    addGPIOOptionValue(html, GPIO_VIRTUAL_RELAY, gpio, String(S_SPACE) + "VIRTUAL");
+    addGPIOOptionValue(GPIO_VIRTUAL_RELAY, gpio, String(S_SPACE) + "VIRTUAL");
 
 #ifdef ARDUINO_ARCH_ESP8266
-  for (uint8_t suported = 0; suported <= OFF_GPIO; suported++)
-    if (ConfigESP->checkBusyGpio(suported, function) || suported == gpio)
-      addGPIOOptionValue(html, suported, gpio, FPSTR(GPIO_P[suported]));
+  for (uint8_t supported = 0; supported <= OFF_GPIO; supported++)
+    if (ConfigESP->checkBusyGpio(supported, function) || supported == gpio)
+      addGPIOOptionValue(supported, gpio, FPSTR(GPIO_P[supported]));
 
 #elif ARDUINO_ARCH_ESP32
 
-  for (uint8_t suported = 0; suported <= OFF_GPIO; suported++)
-    if ((ConfigESP->checkBusyGpio(suported, function) || suported == gpio))
-      addGPIOOptionValue(html, suported, gpio, FPSTR(GPIO_P[suported]));
+  for (uint8_t supported = 0; supported <= OFF_GPIO; supported++)
+    if ((ConfigESP->checkBusyGpio(supported, function) || supported == gpio))
+      addGPIOOptionValue(supported, gpio, FPSTR(GPIO_P[supported]));
 
 #endif
-  WebServer->sendHeader();
-  html += F("</select>");
-
-  html += F("</i>");
+  WebServer->sendContent(F("</select>"));
+  WebServer->sendContent(F("</i>"));
 }
 
-void addGPIOOptionValue(String& html, uint8_t gpio, uint8_t selectedGpio, const String& name) {
-  html += F("<option value='");
-  html += gpio;
-  html += F("'");
+void addGPIOOptionValue(uint8_t gpio, uint8_t selectedGpio, const String& name) {
+  WebServer->sendContent(F("<option value='"));
+  WebServer->sendContent(gpio);
+  WebServer->sendContent(F("'"));
 
   if (gpio == selectedGpio) {
-    html += F(" selected");
+    WebServer->sendContent(F(" selected"));
   }
-  if (gpio == OFF_GPIO) {
-    html += F(">");
-  }
-  else {
-    html += F("> GPIO");
-  }
-  html += name;
+
+  WebServer->sendContent((gpio == OFF_GPIO) ? F(">\n") : F("> GPIO"));
+  WebServer->sendContent(name);
 }
 
 #ifdef GUI_SENSOR_I2C_EXPENDER
 
-void addListExpanderBox(String& html, const String& input_id, const String& name, uint8_t function, uint8_t nr, const String& url) {
+void addListExpanderBox(const String& input_id, const String& name, uint8_t function, uint8_t nr, const String& url) {
   uint8_t type = ConfigManager->get(KEY_ACTIVE_EXPENDER)->getElement(function).toInt();
 
   if (nr == 0) {
-    addListBox(html, INPUT_EXPENDER_TYPE, S_TYPE, EXPENDER_LIST_P, 4, type);
+    addListBox(INPUT_EXPENDER_TYPE, S_TYPE, EXPENDER_LIST_P, EXPENDER_COUNT, type);
   }
 
-  if (ConfigESP->checkActiveMCP23017(function)) {
-    addListExpanderGPIOBox(webContentBuffer, input_id, name, function, nr, url);
+  if (Expander->checkActiveExpander(function)) {
+    if (nr < MAX_EXPANDER_FOR_FUNCTION) {
+      addListExpanderGPIOBox(input_id, name, function, nr, url);
+    }
+    else {
+      addListGPIOLinkBox(input_id, name, getParameterRequest(url, ARG_PARM_NUMBER), function, nr);
+    }
   }
   else {
-    addListGPIOLinkBox(webContentBuffer, input_id, name, getParameterRequest(url, ARG_PARM_NUMBER), function, nr);
+    addListGPIOLinkBox(input_id, name, getParameterRequest(url, ARG_PARM_NUMBER), function, nr);
   }
 }
 
-void addListExpanderGPIOBox(String& html, const String& input_id, const String& name, uint8_t function, uint8_t nr, const String& url) {
+void addListExpanderGPIOBox(const String& input_id, const String& name, uint8_t function, uint8_t nr, const String& url) {
   uint8_t address, type, maxNr;
   const char* const* listAdressExpender;
   const char* const* listExpender;
 
   type = ConfigManager->get(KEY_ACTIVE_EXPENDER)->getElement(function).toInt();
 
-  if (type == EXPENDER_PCF8574) {
+  if (type == EXPENDER_PCF8574 || type == EXPENDER_PCF8574_I2C2) {
     maxNr = 8;
     listAdressExpender = EXPENDER_PCF8574_P;
     listExpender = GPIO_PCF_8574_P;
+  }
+  else if (type == EXPENDER_PCF8575 || type == EXPENDER_PCF8575_I2C2) {
+    maxNr = 16;
+    listAdressExpender = EXPENDER_P;
+    listExpender = GPIO_PCF_PCF8575_P;
   }
   else {
     maxNr = 16;
@@ -350,173 +361,215 @@ void addListExpanderGPIOBox(String& html, const String& input_id, const String& 
 
   if (nr == 0 || nr == maxNr) {
     for (uint8_t gpio = nr; gpio <= OFF_GPIO_EXPENDER; gpio++) {
-      address = ConfigESP->getAdressMCP23017(gpio, function);
+      address = Expander->getAdressExpander(gpio, function);
       if (address != OFF_ADDRESS_MCP23017) {
         break;
       }
     }
 
     if (url != "")
-      addListLinkBox(html, String(INPUT_ADRESS_MCP23017) + nr, String(S_ADDRESS) + S_SPACE + 1, listAdressExpender, 5, address, url);
+      addListLinkBox(String(INPUT_ADRESS_MCP23017) + nr, String(S_ADDRESS) + S_SPACE + 1, listAdressExpender, 5, address, url);
     else
-      addListBox(html, String(INPUT_ADRESS_MCP23017) + nr, String(S_ADDRESS) + S_SPACE + 1, listAdressExpender, 5, address);
+      addListBox(String(INPUT_ADRESS_MCP23017) + nr, String(S_ADDRESS) + S_SPACE + 1, listAdressExpender, 5, address);
   }
 
-  addListExpanderGPIO(webContentBuffer, input_id, name, function, nr, listExpender, 18, getParameterRequest(url, ARG_PARM_NUMBER) + nr);
+  addListExpanderGPIO(input_id, name, function, nr, listExpender, 18, getParameterRequest(url, ARG_PARM_NUMBER) + nr);
 }
 
-void addListExpanderGPIO(String& html,
-                         const String& input_id,
-                         const String& name,
-                         uint8_t function,
-                         uint8_t nr,
-                         const char* const* array_P,
-                         uint8_t size,
-                         const String& url) {
-  html += F("<i><label><a href='");
-  html += PATH_START;
-  html += url;
-  html += F("'>");
-  html += nr + 1;
-  html += F(". ");
-  html += name;
-  html += F("</a>");
-  html += "</label><select name='";
-  html += input_id;
-  html += "mcp";
-  html += nr;
-  html += F("'>");
+void addListExpanderGPIO(
+    const String& input_id, const String& name, uint8_t function, uint8_t nr, const char* const* array_P, uint8_t size, const String& url) {
+  WebServer->sendContent(F("<i><label><a href='"));
+  WebServer->sendContent(PATH_START);
+  WebServer->sendContent(url);
+  WebServer->sendContent(F("'>"));
+  WebServer->sendContent(nr + 1);
+  WebServer->sendContent(F(". "));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</a>"));
+  WebServer->sendContent(F("</label><select name='"));
+  WebServer->sendContent(input_id);
+  WebServer->sendContent(F("mcp"));
+  WebServer->sendContent(nr);
+  WebServer->sendContent(F("'>"));
 
-  uint8_t selected = ConfigESP->getGpioMCP23017(nr, function);
+  uint8_t selected = Expander->getGpioExpander(nr, function);
 
-  for (uint8_t suported = 0; suported < size; suported++) {
-    if (!String(FPSTR(array_P[suported])).isEmpty()) {
-      if (ConfigESP->checkBusyGpioMCP23017(suported, nr, function) || selected == suported) {
-        html += F("<option value='");
-        html += suported;
-        html += F("'");
-        if (selected == suported) {
-          html += F(" selected");
-        }
-        html += F(">");
-        html += FPSTR(array_P[suported]);
+  for (uint8_t supported = 0; supported < size; supported++) {
+    if (!String(FPSTR(array_P[supported])).isEmpty() && (Expander->checkBusyGpioExpander(supported, nr, function) || selected == supported)) {
+      WebServer->sendContent(F("<option value='"));
+      WebServer->sendContent(supported);
+      WebServer->sendContent(F("'"));
+      if (selected == supported) {
+        WebServer->sendContent(F(" selected"));
       }
+      WebServer->sendContent(F(">"));
+      WebServer->sendContent(FPSTR(array_P[supported]));
     }
   }
-  WebServer->sendHeader();
-  html += F("</select></i>");
+
+  WebServer->sendContent(F("</select></i>"));
 }
 #endif
 
-void addListBox(String& html, const String& input_id, const String& name, const char* const* array_P, uint8_t size, uint8_t selected, uint8_t nr) {
-  html += F("<i><label>");
-  if (nr != 0) {
-    html += nr;
-    html += F(". ");
+void addListBox(const String& input_id, const String& name, const char* const* array_P, uint8_t size, uint8_t selected, uint8_t nr, bool underline) {
+  if (underline) {
+    WebServer->sendContent(F("<i>"));
   }
-  html += name;
-  html += "</label><select name='";
-  html += input_id;
-  if (nr != 0) {
-    html += nr;
+  else {
+    WebServer->sendContent(F("<i style='border-bottom:none !important;'>"));
   }
-  html += F("'>");
 
-  for (uint8_t suported = 0; suported < size; suported++) {
-    if (!String(FPSTR(array_P[suported])).isEmpty()) {
-      html += F("<option value='");
-      html += suported;
-      html += F("'");
-      if (selected == suported) {
-        html += F(" selected");
+  WebServer->sendContent(F("<label>"));
+
+  if (nr != 0) {
+    WebServer->sendContent(nr);
+    WebServer->sendContent(F(". "));
+  }
+
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label><select name='"));
+  WebServer->sendContent(input_id);
+
+  if (nr != 0) {
+    WebServer->sendContent(nr);
+  }
+
+  WebServer->sendContent(F("'>"));
+
+  for (uint8_t supported = 0; supported < size; supported++) {
+    if (!String(FPSTR(array_P[supported])).isEmpty()) {
+      WebServer->sendContent(F("<option value='"));
+      WebServer->sendContent(supported);
+      WebServer->sendContent(F("'"));
+
+      if (selected == supported) {
+        WebServer->sendContent(F(" selected"));
       }
-      html += F(">");
-      html += FPSTR(array_P[suported]);
+
+      WebServer->sendContent(F(">"));
+      WebServer->sendContent(FPSTR(array_P[supported]));
     }
   }
-  WebServer->sendHeader();
-  html += F("</select></i>");
+
+  WebServer->sendContent(F("</select></i>"));
 }
 
-void addListNumbersBox(String& html, const String& input_id, const String& name, uint8_t size, uint8_t selected) {
-  html += F("<i><label>");
-  html += name;
-  html += "</label><select name='";
-  html += input_id;
-  html += F("'>");
+void addListNumbersBox(const String& input_id, const String& name, uint8_t size, uint8_t selected) {
+  WebServer->sendContent(F("<i><label>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label><select name='"));
+  WebServer->sendContent(input_id);
+  WebServer->sendContent(F("'>"));
 
   for (uint8_t suported = 0; suported < size; suported++) {
-    html += F("<option value='");
-    html += suported;
-    html += F("'");
+    WebServer->sendContent(F("<option value='"));
+    WebServer->sendContent(suported);
+    WebServer->sendContent(F("'"));
     if (selected == suported) {
-      html += F(" selected");
+      WebServer->sendContent(F(" selected"));
     }
-    html += F(">");
-    html += (suported + 1);
+    WebServer->sendContent(F(">"));
+    WebServer->sendContent(suported + 1);
   }
-  WebServer->sendHeader();
-  html += F("</select></i>");
+
+  WebServer->sendContent(F("</select></i>"));
 }
 
-void addListLinkBox(String& html,
-                    const String& input_id,
-                    const String& name,
-                    const char* const* array_P,
-                    uint8_t size,
-                    uint8_t selected,
-                    const String& url,
-                    uint8_t nr) {
-  html += F("<i><label><a href='");
-  html += PATH_START;
-  html += url;
-  html += F("'>");
+void addListNumbersSensorBox(const String& input_id, const String& name, uint8_t selected) {
+  WebServer->sendContent(F("<i><label>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</label><select name='"));
+  WebServer->sendContent(input_id);
+  WebServer->sendContent(F("'>"));
 
-  if (nr != 0) {
-    html += nr;
-    html += F(". ");
+  WebServer->sendContent(F("<option value='0'"));
+  if (selected == 0) {
+    WebServer->sendContent(F(" selected"));
   }
-  html += name;
-  html += F("</a>");
-  html += "</label><select name='";
-  html += input_id;
-  if (nr != 0) {
-    html += nr;
-  }
-  html += F("'>");
+  WebServer->sendContent(F(">"));
+  WebServer->sendContent(S_ABSENT);
+  WebServer->sendContent(F("</option>"));
 
-  for (uint8_t suported = 0; suported < size; suported++) {
-    if (!String(FPSTR(array_P[suported])).isEmpty()) {
-      html += F("<option value='");
-      html += suported;
-      html += F("'");
-      if (selected == suported) {
-        html += F(" selected");
+  for (auto element = Supla::Element::begin(); element != nullptr; element = element->next()) {
+    if (element->getChannel()) {
+      auto channel = element->getChannel();
+      uint8_t channelNumber = channel->getChannelNumber();
+
+      if (channel->getChannelType() == SUPLA_CHANNELTYPE_THERMOMETER || channel->getChannelType() == SUPLA_CHANNELTYPE_HUMIDITYANDTEMPSENSOR) {
+        WebServer->sendContent(F("<option value='"));
+        WebServer->sendContent(channelNumber);
+        WebServer->sendContent(F("'"));
+        if (selected == channelNumber) {
+          WebServer->sendContent(F(" selected"));
+        }
+        WebServer->sendContent(F(">"));
+        WebServer->sendContent(channelNumber);
+        WebServer->sendContent(F(" - "));
+
+        if (channel->getChannelType() == SUPLA_CHANNELTYPE_THERMOMETER) {
+          WebServer->sendContent(channel->getValueDouble());
+        }
+        else if (channel->getChannelType() == SUPLA_CHANNELTYPE_HUMIDITYANDTEMPSENSOR) {
+          WebServer->sendContent(channel->getValueDoubleFirst());
+        }
+        WebServer->sendContent(S_CELSIUS);
       }
-      html += F(">");
-      html += FPSTR(array_P[suported]);
     }
   }
-  WebServer->sendHeader();
-  html += F("</select></i>");
+  WebServer->sendContent(F("</select></i>"));
 }
 
-void addButton(String& html, const String& name, const String& url) {
-  html += F("<a href='");
-  html += getURL(url);
-  html += F("'><button>");
-  html += name;
-  html += F("</button></a>");
-  html += F("<br><br>");
-  WebServer->sendHeader();
+void addListLinkBox(
+    const String& input_id, const String& name, const char* const* array_P, uint8_t size, uint8_t selected, const String& url, uint8_t nr) {
+  WebServer->sendContent(F("<i><label><a href='"));
+  WebServer->sendContent(PATH_START);
+  WebServer->sendContent(url);
+  WebServer->sendContent(F("'>"));
+
+  if (nr != 0) {
+    WebServer->sendContent(nr);
+    WebServer->sendContent(F(". "));
+  }
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</a>"));
+  WebServer->sendContent(F("</label><select name='"));
+  WebServer->sendContent(input_id);
+
+  if (nr != 0) {
+    WebServer->sendContent(nr);
+  }
+  WebServer->sendContent(F("'>"));
+
+  for (uint8_t supported = 0; supported < size; supported++) {
+    if (!String(FPSTR(array_P[supported])).isEmpty()) {
+      WebServer->sendContent(F("<option value='"));
+      WebServer->sendContent(supported);
+      WebServer->sendContent(F("'"));
+      if (selected == supported) {
+        WebServer->sendContent(F(" selected"));
+      }
+      WebServer->sendContent(F(">"));
+      WebServer->sendContent(FPSTR(array_P[supported]));
+    }
+  }
+
+  WebServer->sendContent(F("</select></i>"));
 }
 
-void addButtonSubmit(String& html, const String& name) {
-  html += F("<button type='submit'>");
-  html += name;
-  html += F("</button>");
-  html += F("<br><br>");
-  WebServer->sendHeader();
+void addButton(const String& name, const String& url) {
+  WebServer->sendContent(F("<a href='"));
+  WebServer->sendContent(getURL(url));
+  WebServer->sendContent(F("'><button>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</button></a>"));
+  WebServer->sendContent(F("<br><br>"));
+}
+
+void addButtonSubmit(const String& name) {
+  WebServer->sendContent(F("<button type='submit'>"));
+  WebServer->sendContent(name);
+  WebServer->sendContent(F("</button>"));
+  WebServer->sendContent(F("<br><br>"));
 }
 
 String getURL(const String& url) {
@@ -535,61 +588,76 @@ String getParameterRequest(const String& url, const String& param, const String&
   return url + String(F("?")) + param + String(F("=")) + value;
 }
 
-const String SuplaJavaScript(const String& java_return) {
-  String java_script =
-      F("<script type='text/javascript'>setTimeout(function(){var element=document.getElementById('msg');if(element != "
-        "null){element.style.visibility='hidden';if(window.location.pathname != '/");
-  java_script += java_return;
-  java_script += F("'){location.href='");
-  java_script += java_return;
-  java_script += F("'};}},1600);");
-  java_script += F("if(window.top.location != window.location){window.top.location.href = window.location.href;}</script>\n");
-  return java_script;
+void SuplaJavaScript(const String& java_return) {
+  WebServer->sendContent(F("<script type='text/javascript'>"));
+  WebServer->sendContent(F("setTimeout(function() {"));
+  WebServer->sendContent(F("var element = document.getElementById('msg');"));
+  WebServer->sendContent(F("if (element !== null && element.innerHTML.trim() !== '') {"));
+  WebServer->sendContent(F("element.style.visibility = 'hidden';"));
+  WebServer->sendContent(F("var url = window.location.pathname + window.location.search;"));
+  WebServer->sendContent(F("if (url !== '/"));
+  WebServer->sendContent(java_return);
+  WebServer->sendContent(F("') {"));
+  WebServer->sendContent(F("location.href='/"));
+  WebServer->sendContent(java_return);
+  WebServer->sendContent(F("';}}}, 4000);"));
+  WebServer->sendContent(F("if (window.top.location !== window.location) {"));
+  WebServer->sendContent(F("window.top.location.href = window.location.href;"));
+  WebServer->sendContent(F("}</script>\n"));
 }
 
-const String SuplaSaveResult(int save) {
-  if (save == 0)
-    return F("");
-  String saveresult = "";
-  saveresult += F("<div id=\"msg\" class=\"c\">");
-  if (save == 1) {
-    saveresult += S_DATA_SAVED;
+// TODO: @krycha88 Usunąć z SuplaSaveResult nieużywany status WRITE_ERROR_UNABLE_TO_READ_FILE_FS_PARTITION_MISSING```
+void SuplaSaveResult(int save) {
+  if (save == SaveResult::DATA_SAVED_RESTART_MODULE || save == SaveResult::RESTART_MODULE) {
+    WebServer->sendContent("<meta http-equiv=\"refresh\" content=\"2;url=/\">\n");
   }
-  else if (save == 2) {
-    saveresult += S_RESTART_MODULE;
+  WebServer->sendContent(F("<div id=\"msg\" class=\"c\">"));
+
+  switch (save) {
+    case SaveResult::DATA_SAVE:
+      WebServer->sendContent(S_DATA_SAVED);
+      break;
+    case SaveResult::RESTART_MODULE:
+      WebServer->sendContent(S_RESTART_MODULE);
+      break;
+    case SaveResult::DATA_ERASED_RESTART_DEVICE:
+      WebServer->sendContent(S_DATA_ERASED_RESTART_DEVICE);
+      break;
+    case SaveResult::WRITE_ERROR_UNABLE_TO_READ_FILE_FS_PARTITION_MISSING:
+      WebServer->sendContent(S_WRITE_ERROR_UNABLE_TO_READ_FILE_FS_PARTITION_MISSING);
+      break;
+    case SaveResult::DATA_SAVED_RESTART_MODULE:
+      WebServer->sendContent(S_DATA_SAVED_RESTART_MODULE);
+      break;
+    case SaveResult::WRITE_ERROR_BAD_DATA:
+      WebServer->sendContent(S_WRITE_ERROR_BAD_DATA);
+      break;
+    case SaveResult::DATA_SAVE_MODE_CONFIG:
+      WebServer->sendContent(F("data saved"));
+      break;
+    case SaveResult::UPDATE_SUCCESS:
+      WebServer->sendContent(F("Aktualizacja zakończona."));
+      break;
+    case SaveResult::UPDATE_ERROR:
+      WebServer->sendContent(F("Błąd aktualizacji."));
+      break;
+    case SaveResult::UPDATE_WAIT:
+      WebServer->sendContent(F("Zostanie wygenerowana nowa wersja. Spróbuj ponownie za 5min."));
+      break;
+    case SaveResult::UPDATE_NO_UPDATES:
+      WebServer->sendContent(F("Brak aktualizacji."));
+      break;
+    case SaveResult::UPDATE_TOO_LESS_SPACE:
+      WebServer->sendContent(F("Wykonaj aktualizację 2 etapową."));
+      break;
+    case SaveResult::UPDATE_NEW_VERSION:
+      WebServer->sendContent(F("Dostępna nowa wersja."));
+      break;
+    case SaveResult::UPDATE_2STEP:
+      WebServer->sendContent(F("Aktualizacja 2 etapowa."));
+      break;
+    default:
+      break;
   }
-  else if (save == 3) {
-    saveresult += S_DATA_ERASED_RESTART_DEVICE;
-  }
-  else if (save == 4) {
-    saveresult += S_WRITE_ERROR_UNABLE_TO_READ_FILE_FS_PARTITION_MISSING;
-  }
-  else if (save == 5) {
-    saveresult += S_DATA_SAVED_RESTART_MODULE;
-  }
-  else if (save == 6) {
-    saveresult += S_WRITE_ERROR_BAD_DATA;
-  }
-  else if (save == 7) {
-    saveresult += F("data saved");
-  }
-  saveresult += F("</div>");
-  return saveresult;
+  WebServer->sendContent(F("</div>"));
 }
-
-#ifdef SUPLA_PUSHOVER
-namespace Html {
-void addPushover(uint8_t nr) {
-  if (nr <= MAX_PUSHOVER_MESSAGE) {
-    addFormHeader(webContentBuffer, S_PUSHOVER);
-
-    uint8_t selected = ConfigManager->get(KEY_PUSHOVER_SOUND)->getElement(nr).toInt();
-    addListBox(webContentBuffer, INPUT_PUSHOVER_SOUND, S_SOUND, PUSHOVER_SOUND_LIST_P, Supla::PushoverSound::SOUND_COUNT, selected);
-
-    String massage = ConfigManager->get(KEY_PUSHOVER_MASSAGE)->getElement(nr).c_str();
-    addTextBox(webContentBuffer, INPUT_PUSHOVER_MESSAGE, S_MESSAGE, massage, 0, MAX_MESSAGE_SIZE, false);
-    addFormHeaderEnd(webContentBuffer);
-  }
-}
-}  // namespace Html
-#endif

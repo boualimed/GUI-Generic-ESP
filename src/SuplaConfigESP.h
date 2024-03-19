@@ -15,6 +15,7 @@
 */
 #ifndef SuplaConfigESP_h
 #define SuplaConfigESP_h
+#include <supla/io.h>
 
 #include "GUIGenericCommonDefined.h"
 #include "GUI-Generic_Config.h"
@@ -25,6 +26,7 @@
 #include <supla/action_handler.h>
 #include <supla/element.h>
 #include "SuplaConfigManager.h"
+#include <supla/actions.h>
 
 #include <Ticker.h>
 
@@ -49,6 +51,7 @@ enum _ConfigMode
 {
   CONFIG_MODE_10_ON_PRESSES,
   CONFIG_MODE_5SEK_HOLD,
+  CONFIG_MODE_RESET,
   FACTORYRESET
 };
 
@@ -61,12 +64,19 @@ enum _ConfigMode
 #define OFF_GPIO_EXPENDER    17
 #define OFF_ADDRESS_MCP23017 4
 
-#define GPIO_VIRTUAL_RELAY 99
+#define GPIO_VIRTUAL_RELAY 77
 
 typedef struct {
   int status;
   const char *msg;
 } _supla_status;
+
+enum ResetType
+{
+  RESET_NO_ERASE_DATA,
+  RESET_DEVICE_DATA,
+  RESET_FACTORY_DATA
+};
 
 class SuplaConfigESP : public Supla::ActionHandler, public Supla::Element {
  public:
@@ -81,7 +91,6 @@ class SuplaConfigESP : public Supla::ActionHandler, public Supla::Element {
   uint8_t getDefaultTamplateBoard();
 
   bool checkSSL();
-  bool checkAvailableGUI();
 
   const char *getLastStatusMessageSupla();
   int getLastStatusSupla();
@@ -90,6 +99,8 @@ class SuplaConfigESP : public Supla::ActionHandler, public Supla::Element {
   void ledBlinkingStop(void);
 
   String getMacAddress(bool formating);
+  void getMacAddress(char *macAddress, bool formating);
+  void getFreeHeapAsString(char *freeHeapStr);
 
   uint8_t configModeESP;
   _supla_status supla_status;
@@ -101,7 +112,12 @@ class SuplaConfigESP : public Supla::ActionHandler, public Supla::Element {
 
   HardwareSerial &getHardwareSerial(int8_t rxPin, int8_t txPin = -1);
 
+  uint8_t getBaudRate(uint8_t gpio);
+  void setBaudRate(uint8_t gpio, int baudRate);
+  int getBaudRateSpeed(uint8_t gpio);
+
   uint8_t getNumberButton(uint8_t nr);
+  uint8_t getNumberButtonAdditional(uint8_t functionButton, uint8_t nr = 0);
   uint8_t getKeyGpio(uint8_t gpio);
 
   bool getLevel(uint8_t gpio);
@@ -110,7 +126,12 @@ class SuplaConfigESP : public Supla::ActionHandler, public Supla::Element {
 
   uint8_t getMemory(uint8_t gpio, uint8_t nr = 0);
   uint8_t getAction(uint8_t gpio);
+  Supla::Action getActionInternal(uint8_t gpio);
   uint8_t getEvent(uint8_t gpio);
+  uint8_t getLightRelay(uint8_t gpio);
+
+  int getBrightnessLevelOLED();
+  void setBrightnessLevelOLED(int newBrightness);
 
   bool checkBusyCfg(int gpio, int function);
   int checkBusyGpio(int gpio, int function);
@@ -125,29 +146,23 @@ class SuplaConfigESP : public Supla::ActionHandler, public Supla::Element {
   void setInversed(uint8_t gpio, int inversed);
   void setAction(uint8_t gpio, int action);
   void setEvent(uint8_t gpio, int event);
+  void setLightRelay(uint8_t gpio, int type);
+
+  void setNumberButton(uint8_t nr) {
+    setNumberButton(nr, nr);
+  }
+  void setNumberButton(uint8_t nr, uint8_t nrButton);
 
   void setGpio(uint8_t gpio, uint8_t nr, uint8_t function);
   void setGpio(uint8_t gpio, uint8_t function) {
     setGpio(gpio, 0, function);
   }
 
-  void clearGpio(uint8_t gpio, uint8_t function = 0);
-  void reset(bool forceReset = false);
-  void factoryReset(bool forceReset = false);
+  void clearGpio(uint8_t gpio, uint8_t function = 0, uint8_t nr = 0);
+
+  void commonReset(const char *resetMessage, ResetType resetType, bool forceReset = false);
+
   const String getConfigNameAP();
-
-#ifdef GUI_SENSOR_I2C_EXPENDER
-  bool checkBusyGpioMCP23017(uint8_t gpio, uint8_t nr, uint8_t function);
-  uint8_t getGpioMCP23017(uint8_t nr, uint8_t function);
-  uint8_t getAdressMCP23017(uint8_t nr, uint8_t function);
-  void setGpioMCP23017(uint8_t gpio, uint8_t adress, uint8_t nr, uint8_t function);
-  void clearGpioMCP23017(uint8_t gpio, uint8_t nr, uint8_t function);
-  void clearFunctionGpio(uint8_t function);
-
-  bool checkActiveMCP23017(uint8_t function);
-  uint8_t getFunctionMCP23017(uint8_t adress);
-  uint8_t getNrMCP23017(uint8_t adress);
-#endif
 
   void configModeInit();
   void clearEEPROM();
@@ -161,9 +176,4 @@ class SuplaConfigESP : public Supla::ActionHandler, public Supla::Element {
 
 void ledBlinkingTicker();
 void status_func(int status, const char *msg);
-
-uint32_t getFreeStackWatermark();
-unsigned long FreeMem();
-void checkRAM();
-
 #endif  // SuplaConfigESP_h

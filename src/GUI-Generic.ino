@@ -34,17 +34,57 @@ extern "C" {
 #include <supla/sensor/direct_link_sensor_thermometer.h>
 #endif
 
-#ifdef SUPLA_DIRECT_LINKS_MULTI_SENSOR
 #include "src/sensor/DirectLinks.h"
+
+#ifdef SUPLA_CC1101
+#include "src/sensor/WmbusMeter.h"
 #endif
+
+uint32_t last_loop{0};
+#define LOOP_INTERVAL 16
 
 void setup() {
   uint8_t nr, gpio;
 
-  Serial.begin(74880);
+  Serial.begin(115200);
+  eeprom.setStateSavePeriod(5000);
 
   ConfigManager = new SuplaConfigManager();
   ConfigESP = new SuplaConfigESP();
+
+  ImprovSerialComponent *improvSerialComponent = new ImprovSerialComponent();
+  improvSerialComponent->enable();
+
+#ifdef SUPLA_BONEIO
+  new Supla::boneIO();
+#endif
+
+#ifdef GUI_SENSOR_I2C_EXPENDER
+  Expander = new Supla::Control::ConfigExpander();
+#endif
+
+#ifdef SUPLA_CONDITIONS
+  Supla::GUI::Conditions::addConditionsElement();
+#endif
+
+#if defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_I2C_ENERGY_METER)
+  if (ConfigESP->getGpio(FUNCTION_SDA) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_SCL) != OFF_GPIO) {
+    bool force400khz = false;
+
+    Wire.begin(ConfigESP->getGpio(FUNCTION_SDA), ConfigESP->getGpio(FUNCTION_SCL));
+  }
+
+#ifdef ARDUINO_ARCH_ESP32
+  if (ConfigESP->getGpio(FUNCTION_SDA_2) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_SCL_2) != OFF_GPIO) {
+    Wire1.begin(ConfigESP->getGpio(FUNCTION_SDA_2), ConfigESP->getGpio(FUNCTION_SCL_2));
+    Wire1.setClock(100000);
+  }
+#endif
+#endif
+
+#ifdef SUPLA_ACTION_TRIGGER
+  Supla::GUI::actionTrigger = new Supla::GUI::ActionTrigger[Supla::GUI::calculateElementCountActionTrigger()];
+#endif
 
 #if defined(SUPLA_RELAY) || defined(SUPLA_ROLLERSHUTTER)
   uint8_t rollershutters = ConfigManager->get(KEY_MAX_ROLLERSHUTTER)->getValueInt();
@@ -66,22 +106,10 @@ void setup() {
         Supla::GUI::addRelayBridge(nr);
       }
       else {
-#ifdef SUPLA_RELAY
-        Supla::GUI::addRelay(nr);
-#ifdef SUPLA_BUTTON
-        Supla::GUI::addButtonToRelay(nr);
-#endif
-#endif
+        Supla::GUI::addRelayOrThermostat(nr);
       }
 #else
-
-#ifdef SUPLA_RELAY
-      Supla::GUI::addRelay(nr);
-#ifdef SUPLA_BUTTON
-      Supla::GUI::addButtonToRelay(nr);
-#endif
-#endif
-
+      Supla::GUI::addRelayOrThermostat(nr);
 #endif
 
       if (ConfigESP->getGpio(nr, FUNCTION_RELAY) != OFF_GPIO) {
@@ -91,10 +119,6 @@ void setup() {
              strcmp(ConfigManager->get(KEY_RF_BRIDGE_CODE_OFF)->getElement(nr).c_str(), "") != 0)) {
           Supla::GUI::addButtonBridge(nr);
         }
-#endif
-
-#ifdef SUPLA_PUSHOVER
-        Supla::GUI::addPushover(nr, S_RELAY, Supla::GUI::relay[nr]);
 #endif
 
 #ifdef SUPLA_DIRECT_LINKS
@@ -110,16 +134,21 @@ void setup() {
   for (nr = 0; nr < ConfigManager->get(KEY_MAX_LIMIT_SWITCH)->getValueInt(); nr++) {
     gpio = ConfigESP->getGpio(nr, FUNCTION_LIMIT_SWITCH);
 
-    if (gpio != OFF_GPIO) {
-      auto binary = new Supla::Sensor::Binary(gpio, ConfigESP->getPullUp(gpio));
+    Supla::Sensor::Binary *binary = nullptr;
 
-#ifdef SUPLA_PUSHOVER
-      Supla::GUI::addPushover(nr, S_LIMIT_SWITCH, binary);
+    if (gpio != OFF_GPIO) {
+      binary = Supla::Control::GUI::Binary(gpio, ConfigESP->getPullUp(gpio), false, nr);
+    }
+
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_BINARY, S_LIMIT_SWITCH, binary, nr);
+#endif
+  }
 #endif
 
-      Supla::GUI::addConditionsTurnON(SENSOR_BINARY, binary, nr);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_BINARY, binary, nr);
-    }
+#ifdef SUPLA_PUSHOVER
+  for (uint8_t nr = 0; nr < MAX_PUSHOVER_MESSAGE; nr++) {
+    Supla::GUI::addPushover(nr);
   }
 #endif
 
@@ -145,13 +174,15 @@ void setup() {
   for (nr = 0; nr < ConfigManager->get(KEY_MAX_DIRECT_LINKS_SENSOR)->getValueInt(); nr++) {
     if (strcmp(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(), "") != 0) {
       switch (ConfigManager->get(KEY_DIRECT_LINKS_TYPE)->getElement(nr).toInt()) {
-        case DIRECT_LINKS_TYPE_TEMP:
-          new Supla::Sensor::DirectLinksThermometer(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(),
-                                                    ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
-          // Supla::GUI::addConditionsTurnON(SENSOR_DIRECT_LINKS_SENSOR_THERMOMETR, directLinkSensorThermometer, nr);
-          // Supla::GUI::addConditionsTurnOFF(SENSOR_DIRECT_LINKS_SENSOR_THERMOMETR, directLinkSensorThermometer, nr);
+        case DIRECT_LINKS_TYPE_TEMP: {
+          auto directLinkSensorThermometer = new Supla::Sensor::DirectLinksThermometer(
+              ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(), ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_DIRECT_LINKS_SENSOR_THERMOMETR, S_DIRECT_LINKS_SENSOR_THERMOMETR,
+                                                      directLinkSensorThermometer, nr);
+#endif
           break;
-
+        }
         case DIRECT_LINKS_TYPE_TEMP_HYGR:
           new Supla::Sensor::DirectLinksThermHygroMeter(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(),
                                                         ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
@@ -162,15 +193,21 @@ void setup() {
                                                    ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
           break;
 
-        case DIRECT_LINKS_TYPE_ELECTRICITY_METER:
+        case DIRECT_LINKS_TYPE_ONE_PHASE_ELECTRICITY_METER:
           new Supla::Sensor::DirectLinksOnePhaseElectricityMeter(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(),
                                                                  ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
+          break;
+
+        case DIRECT_LINKS_TYPE_ELECTRICITY_METER:
+          new Supla::Sensor::DirectLinksElectricityMeter(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(),
+                                                         ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
           break;
 
         case DIRECT_LINKS_TYPE_DISTANCE:
           new Supla::Sensor::DirectLinksDistance(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(),
                                                  ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
           break;
+
         case DIRECT_LINKS_TYPE_DEPTH:
           new Supla::Sensor::DirectLinksDepth(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str(),
                                               ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
@@ -186,8 +223,10 @@ void setup() {
       auto directLinkSensorThermometer = new Supla::Sensor::DirectLinksSensorThermometer(ConfigManager->get(KEY_SUPLA_SERVER)->getValue());
       directLinkSensorThermometer->setUrl(ConfigManager->get(KEY_DIRECT_LINKS_SENSOR)->getElement(nr).c_str());
 
-      Supla::GUI::addConditionsTurnON(SENSOR_DIRECT_LINKS_SENSOR_THERMOMETR, directLinkSensorThermometer, nr);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_DIRECT_LINKS_SENSOR_THERMOMETR, directLinkSensorThermometer, nr);
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_DIRECT_LINKS_SENSOR_THERMOMETR, S_DIRECT_LINKS_SENSOR_THERMOMETR,
+                                                  directLinkSensorThermometer, nr);
+#endif
     }
   }
 #endif
@@ -197,8 +236,9 @@ void setup() {
     if (ConfigESP->getGpio(nr, FUNCTION_DHT11) != OFF_GPIO) {
       auto dht11 = new Supla::Sensor::DHT(ConfigESP->getGpio(nr, FUNCTION_DHT11), DHT11);
 
-      Supla::GUI::addConditionsTurnON(SENSOR_DHT11, dht11, nr);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_DHT11, dht11, nr);
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_DHT11, S_DHT11, dht11, nr);
+#endif
     }
   }
 #endif
@@ -208,23 +248,26 @@ void setup() {
     if (ConfigESP->getGpio(nr, FUNCTION_DHT22) != OFF_GPIO) {
       auto dht22 = new Supla::Sensor::DHT(ConfigESP->getGpio(nr, FUNCTION_DHT22), DHT22);
 
-      Supla::GUI::addConditionsTurnON(SENSOR_DHT22, dht22, nr);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_DHT22, dht22, nr);
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_DHT22, S_DHT22, dht22, nr);
+#endif
     }
   }
 #endif
 
 #ifdef SUPLA_SI7021_SONOFF
   if (ConfigESP->getGpio(FUNCTION_SI7021_SONOFF) != OFF_GPIO) {
-    auto si7021sonoff = new Supla::Sensor::Si7021Sonoff(ConfigESP->getGpio(FUNCTION_SI7021_SONOFF));
-    Supla::GUI::addConditionsTurnON(SENSOR_SI7021_SONOFF, si7021sonoff);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_SI7021_SONOFF, si7021sonoff);
+    auto si7021sonoff = new Supla::Sensor::GUI::Si7021Sonoff(ConfigESP->getGpio(FUNCTION_SI7021_SONOFF));
+
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_SI7021_SONOFF, S_SI7021_SONOFF, si7021sonoff);
+#endif
   }
 #endif
 
 #ifdef SUPLA_HC_SR04
   if (ConfigESP->getGpio(FUNCTION_TRIG) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_ECHO) != OFF_GPIO) {
-    Supla::Sensor::HC_SR04 *hcsr04;
+    Supla::Sensor::HC_SR04_NewPing *hcsr04;
     if (ConfigManager->get(KEY_HC_SR04_MAX_SENSOR_READ)->getValueInt() > 0) {
       hcsr04 = new Supla::Sensor::HC_SR04_NewPing(ConfigESP->getGpio(FUNCTION_TRIG), ConfigESP->getGpio(FUNCTION_ECHO), 0,
                                                   ConfigManager->get(KEY_HC_SR04_MAX_SENSOR_READ)->getValueInt(),
@@ -234,28 +277,101 @@ void setup() {
       hcsr04 = new Supla::Sensor::HC_SR04_NewPing(ConfigESP->getGpio(FUNCTION_TRIG), ConfigESP->getGpio(FUNCTION_ECHO));
     }
 
-    Supla::GUI::addConditionsTurnON(SENSOR_HC_SR04, hcsr04);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_HC_SR04, hcsr04);
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_HC_SR04, S_HC_SR04, hcsr04);
+#endif
   }
 #endif
 
 #ifdef GUI_SENSOR_SPI
-  if (ConfigESP->getGpio(FUNCTION_CLK) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_CS) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_D0) != OFF_GPIO) {
+  if (ConfigESP->getGpio(FUNCTION_CLK) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_CS) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_MISO) != OFF_GPIO) {
 #ifdef SUPLA_MAX6675
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_SPI_MAX6675).toInt()) {
       auto thermocouple =
-          new Supla::Sensor::MAX6675_K(ConfigESP->getGpio(FUNCTION_CLK), ConfigESP->getGpio(FUNCTION_CS), ConfigESP->getGpio(FUNCTION_D0));
-      Supla::GUI::addConditionsTurnON(SENSOR_MAX6675, thermocouple);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_MAX6675, thermocouple);
+          new Supla::Sensor::MAX6675K(ConfigESP->getGpio(FUNCTION_CLK), ConfigESP->getGpio(FUNCTION_CS), ConfigESP->getGpio(FUNCTION_MISO));
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_MAX6675, S_MAX6675, thermocouple);
+#endif
     }
 #endif
 
 #ifdef SUPLA_MAX31855
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_SPI_MAX31855).toInt()) {
       auto thermocouple =
-          new Supla::Sensor::MAX31855(ConfigESP->getGpio(FUNCTION_CLK), ConfigESP->getGpio(FUNCTION_CS), ConfigESP->getGpio(FUNCTION_D0));
-      Supla::GUI::addConditionsTurnON(SENSOR_MAX31855, thermocouple);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_MAX31855, thermocouple);
+          new Supla::Sensor::MAX31855(ConfigESP->getGpio(FUNCTION_CLK), ConfigESP->getGpio(FUNCTION_CS), ConfigESP->getGpio(FUNCTION_MISO));
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_MAX31855, S_MAX31855, thermocouple);
+#endif
+    }
+#endif
+
+#ifdef SUPLA_CC1101
+    if (ConfigManager->get(KEY_ACTIVE_SENSOR_2)->getElement(SENSOR_SPI_CC1101).toInt()) {
+      int indexOfSensorType = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_TYPE1).toInt();
+      std::string sensorType = sensors_types[indexOfSensorType];
+      std::string sensorId = ConfigManager->get(KEY_WMBUS_SENSOR_ID)->getElement(0).c_str();
+      std::string sensorKey = ConfigManager->get(KEY_WMBUS_SENSOR_KEY)->getElement(0).c_str();
+      int indexOfSensorProperty = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_PROPERTY1).toInt();
+      std::string sensorProperty = sensors_properties[indexOfSensorProperty];
+      meter = new Supla::Sensor::WmbusMeter(ConfigESP->getGpio(FUNCTION_MOSI), ConfigESP->getGpio(FUNCTION_MISO), ConfigESP->getGpio(FUNCTION_CLK),
+                                            ConfigESP->getGpio(FUNCTION_CS), ConfigESP->getGpio(FUNCTION_GDO0), ConfigESP->getGpio(FUNCTION_GDO2));
+      Serial.println("wMBus-lib: Registered sensors:");
+      meter->add_sensor(new Supla::Sensor::SensorInfo(sensorId, sensorType, sensorProperty, sensorKey));
+      if (ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_ENABLED2).toInt() == 1) {
+        indexOfSensorType = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_TYPE2).toInt();
+        sensorType = sensors_types[indexOfSensorType];
+        sensorId = ConfigManager->get(KEY_WMBUS_SENSOR_ID)->getElement(1).c_str();
+        sensorKey = ConfigManager->get(KEY_WMBUS_SENSOR_KEY)->getElement(1).c_str();
+        indexOfSensorProperty = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_PROPERTY2).toInt();
+        sensorProperty = sensors_properties[indexOfSensorProperty];
+        meter->add_sensor(new Supla::Sensor::SensorInfo(sensorId, sensorType, sensorProperty, sensorKey));
+      }
+
+      if (ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_ENABLED3).toInt() == 1) {
+        indexOfSensorType = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_TYPE3).toInt();
+        sensorType = sensors_types[indexOfSensorType];
+        sensorId = ConfigManager->get(KEY_WMBUS_SENSOR_ID)->getElement(2).c_str();
+        sensorKey = ConfigManager->get(KEY_WMBUS_SENSOR_KEY)->getElement(2).c_str();
+        indexOfSensorProperty = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_PROPERTY3).toInt();
+        sensorProperty = sensors_properties[indexOfSensorProperty];
+        meter->add_sensor(new Supla::Sensor::SensorInfo(sensorId, sensorType, sensorProperty, sensorKey));
+      }
+
+      if (ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_ENABLED4).toInt() == 1) {
+        indexOfSensorType = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_TYPE4).toInt();
+        sensorType = sensors_types[indexOfSensorType];
+        sensorId = ConfigManager->get(KEY_WMBUS_SENSOR_ID)->getElement(3).c_str();
+        sensorKey = ConfigManager->get(KEY_WMBUS_SENSOR_KEY)->getElement(3).c_str();
+        indexOfSensorProperty = ConfigManager->get(KEY_WMBUS_SENSOR)->getElement(WMBUS_CFG_SENSOR_PROPERTY4).toInt();
+        sensorProperty = sensors_properties[indexOfSensorProperty];
+        meter->add_sensor(new Supla::Sensor::SensorInfo(sensorId, sensorType, sensorProperty, sensorKey));
+      }
+      Serial.println("------");
+      meter->add_driver(new Amiplus());
+      meter->add_driver(new Apator08());
+      meter->add_driver(new Apator162());
+      meter->add_driver(new ApatorEITN());
+      meter->add_driver(new Bmeters());
+      meter->add_driver(new C5isf());
+      meter->add_driver(new Compact5());
+      meter->add_driver(new Dme07());
+      meter->add_driver(new Elf());
+      meter->add_driver(new Evo868());
+      meter->add_driver(new FhkvdataIII());
+      meter->add_driver(new Hydrocalm3());
+      meter->add_driver(new Hydrus());
+      meter->add_driver(new Iperl());
+      meter->add_driver(new Itron());
+      meter->add_driver(new Izar());
+      meter->add_driver(new Mkradio3());
+      meter->add_driver(new Mkradio4());
+      meter->add_driver(new Qheat());
+      meter->add_driver(new Qwater());
+      meter->add_driver(new Sharky774());
+      meter->add_driver(new TopasESKR());
+      meter->add_driver(new Ultrimis());
+      meter->add_driver(new Unismart());
+      meter->add_driver(new Vario451());
     }
 #endif
   }
@@ -264,16 +380,19 @@ void setup() {
 #ifdef SUPLA_NTC_10K
   if (ConfigESP->getGpio(FUNCTION_NTC_10K) != OFF_GPIO) {
     auto ntc10k = new Supla::Sensor::NTC10K(ConfigESP->getGpio(FUNCTION_NTC_10K));
-    Supla::GUI::addConditionsTurnON(SENSOR_NTC_10K, ntc10k);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_NTC_10K, ntc10k);
+
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_NTC_10K, S_NTC_10K, ntc10k);
+#endif
   }
 #endif
 
 #ifdef SUPLA_MPX_5XXX
   if (ConfigESP->getGpio(FUNCTION_MPX_5XXX) != OFF_GPIO) {
     Supla::GUI::mpx = new Supla::Sensor::MPX_5XXX(ConfigESP->getGpio(FUNCTION_MPX_5XXX));
-    Supla::GUI::addConditionsTurnON(SENSOR_MPX_5XXX, Supla::GUI::mpx);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_MPX_5XXX, Supla::GUI::mpx);
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_MPX_5XXX, S_MPX_5XXX, Supla::GUI::mpx);
+#endif
 
     Supla::Sensor::Percentage *mpxPercent;
     if (Supla::GUI::mpx->getThankHeight() != 0) {
@@ -283,47 +402,46 @@ void setup() {
       mpxPercent = new Supla::Sensor::Percentage(Supla::GUI::mpx, 0, 100.0);
     }
 
-    Supla::GUI::addConditionsTurnON(SENSOR_MPX_5XXX_PERCENT, mpxPercent);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_MPX_5XXX_PERCENT, mpxPercent);
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_MPX_5XXX_PERCENT, S_MPX_5XXX_PERCENT, mpxPercent);
+#endif
   }
 #endif
 
-#ifdef SUPLA_ANALOG_READING_MAP
+#ifdef SUPLA_ANALOG_READING_KPOP
+  for (nr = 0; nr < ConfigManager->get(KEY_MAX_ANALOG_READING)->getValueInt(); nr++) {
 #ifdef ARDUINO_ARCH_ESP8266
-  Supla::GUI::analog = new Supla::Sensor::AnalogRedingMap *[ConfigManager->get(KEY_MAX_ANALOG_READING)->getValueInt()];
-  gpio = ConfigESP->getGpio(FUNCTION_ANALOG_READING);
-
-  if (gpio != OFF_GPIO) {
-    for (nr = 0; nr < ConfigManager->get(KEY_MAX_ANALOG_READING)->getValueInt(); nr++) {
-      Supla::GUI::analog[nr] = new Supla::Sensor::AnalogRedingMap(gpio);
-      Supla::GUI::addConditionsTurnON(SENSOR_ANALOG_READING_MAP, Supla::GUI::analog[nr], nr);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_ANALOG_READING_MAP, Supla::GUI::analog[nr], nr);
-    }
-  }
+    gpio = ConfigESP->getGpio(FUNCTION_ANALOG_READING);
 #endif
 #ifdef ARDUINO_ARCH_ESP32
-  Supla::GUI::analog = new Supla::Sensor::AnalogRedingMap *[ConfigManager->get(KEY_MAX_ANALOG_READING)->getValueInt()];
-
-  for (nr = 0; nr < ConfigManager->get(KEY_MAX_ANALOG_READING)->getValueInt(); nr++) {
     gpio = ConfigESP->getGpio(nr, FUNCTION_ANALOG_READING);
+#endif
+
     if (gpio != OFF_GPIO) {
-      Supla::GUI::analog[nr] = new Supla::Sensor::AnalogRedingMap(gpio);
-      Supla::GUI::addConditionsTurnON(SENSOR_ANALOG_READING_MAP, Supla::GUI::analog[nr], nr);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_ANALOG_READING_MAP, Supla::GUI::analog[nr], nr);
+      Supla::GUI::analogSensorData.push_back(new Supla::Sensor::AnalogReding(gpio));
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_ANALOG_READING_MAP, S_ANALOG_READING_MAP, Supla::GUI::analogSensorData[nr], nr);
+#endif
     }
   }
 #endif
+
+#ifdef SUPLA_VINDRIKTNING_IKEA_KPOP
+  if (ConfigESP->getGpio(FUNCTION_VINDRIKTNING_IKEA) != OFF_GPIO) {
+#ifdef ARDUINO_ARCH_ESP32
+    auto vindriktningIkea = new Supla::Sensor::VindriktningIkea(ConfigESP->getHardwareSerial(ConfigESP->getGpio(FUNCTION_VINDRIKTNING_IKEA)));
+#else
+    auto vindriktningIkea = new Supla::Sensor::VindriktningIkea(ConfigESP->getGpio(FUNCTION_VINDRIKTNING_IKEA));
 #endif
 
-#ifdef SUPLA_VINDRIKTNING_IKEA
-  if (ConfigESP->getGpio(FUNCTION_VINDRIKTNING_IKEA) != OFF_GPIO) {
-    auto vindriktningIkea = new Supla::Sensor::VindriktningIkea(ConfigESP->getGpio(FUNCTION_VINDRIKTNING_IKEA));
-    Supla::GUI::addConditionsTurnON(SENSOR_VINDRIKTNING_IKEA, vindriktningIkea);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_VINDRIKTNING_IKEA, vindriktningIkea);
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_VINDRIKTNING_IKEA, S_VINDRIKTNING_IKEA, vindriktningIkea);
+#endif
+    improvSerialComponent->disable();
   }
 #endif
 
-#ifdef SUPLA_PMSX003
+#ifdef SUPLA_PMSX003_KPOP
   if (ConfigESP->getGpio(FUNCTION_PMSX003_RX) != OFF_GPIO) {
     Supla::Sensor::PMSx003 *pms;
 
@@ -338,8 +456,9 @@ void setup() {
     auto pmsPM25 = new Supla::Sensor::PMS_PM25(pms);
     new Supla::Sensor::PMS_PM10(pms);
 
-    Supla::GUI::addConditionsTurnON(SENSOR_PMSX003, pmsPM25);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_PMSX003, pmsPM25);
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_PMSX003, S_PMSX003_PM25, pmsPM25);
+#endif
   }
 #endif
 
@@ -360,6 +479,7 @@ void setup() {
 #ifdef SUPLA_HLW8012
   if (ConfigESP->getGpio(FUNCTION_CF) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_CF1) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_SEL) != OFF_GPIO) {
     Supla::GUI::addHLW8012(ConfigESP->getGpio(FUNCTION_CF), ConfigESP->getGpio(FUNCTION_CF1), ConfigESP->getGpio(FUNCTION_SEL));
+    improvSerialComponent->disable();
   }
 #endif
 
@@ -374,16 +494,16 @@ void setup() {
 
   if (pinRX1 != OFF_GPIO && pinTX1 != OFF_GPIO && pinRX2 != OFF_GPIO && pinTX2 != OFF_GPIO && pinRX3 != OFF_GPIO && pinTX3 != OFF_GPIO) {
 #ifdef ARDUINO_ARCH_ESP32
-    PZEMv3 = new Supla::Sensor::ThreePhasePZEMv3(&Serial, pinRX1, pinTX1, &Serial1, pinRX2, pinTX2, &Serial2, pinRX3, pinTX3);
+    PZEMv3 = new Supla::Sensor::CustomThreePhasePZEMv3(&Serial, pinRX1, pinTX1, &Serial1, pinRX2, pinTX2, &Serial2, pinRX3, pinTX3);
 #else
-    PZEMv3 = new Supla::Sensor::ThreePhasePZEMv3(pinRX1, pinTX1, pinRX2, pinTX2, pinRX3, pinTX3);
+    PZEMv3 = new Supla::Sensor::CustomThreePhasePZEMv3(pinRX1, pinTX1, pinRX2, pinTX2, pinRX3, pinTX3);
 #endif
   }
   else if (pinRX1 != OFF_GPIO && pinTX1 != OFF_GPIO && pinTX2 != OFF_GPIO && pinTX3 != OFF_GPIO) {
 #ifdef ARDUINO_ARCH_ESP32
-    PZEMv3 = new Supla::Sensor::ThreePhasePZEMv3(&Serial, pinRX1, pinTX1, &Serial1, pinRX1, pinTX2, &Serial2, pinRX1, pinTX3);
+    PZEMv3 = new Supla::Sensor::CustomThreePhasePZEMv3(&Serial, pinRX1, pinTX1, &Serial1, pinRX1, pinTX2, &Serial2, pinRX1, pinTX3);
 #else
-    PZEMv3 = new Supla::Sensor::ThreePhasePZEMv3(pinRX1, pinTX1, pinRX1, pinTX2, pinRX1, pinTX3);
+    PZEMv3 = new Supla::Sensor::CustomThreePhasePZEMv3(pinRX1, pinTX1, pinRX1, pinTX2, pinRX1, pinTX3);
 #endif
   }
   else if (pinRX1 != OFF_GPIO && pinTX1 != OFF_GPIO) {
@@ -395,36 +515,65 @@ void setup() {
   }
 
   if (PZEMv3) {
-    Supla::GUI::addConditionsTurnON(SENSOR_PZEM_V3, PZEMv3);
-    Supla::GUI::addConditionsTurnOFF(SENSOR_PZEM_V3, PZEMv3);
+    improvSerialComponent->disable();
+#ifdef SUPLA_CONDITIONS
+    Supla::GUI::Conditions::addConditionsSensor(SENSOR_PZEM_V3, S_PZEM_V3, PZEMv3);
+#endif
   }
 #endif
 
 #ifdef SUPLA_CSE7766
   if (ConfigESP->getGpio(FUNCTION_CSE7766_RX) != OFF_GPIO) {
     Supla::GUI::addCSE7766(ConfigESP->getGpio(FUNCTION_CSE7766_RX));
+    improvSerialComponent->disable();
   }
 #endif
 
-#ifdef SUPLA_MODBUS_SDM
+#if defined(SUPLA_MODBUS_SDM) || defined(SUPLA_MODBUS_SDM_ONE_PHASE)
   if (ConfigESP->getGpio(FUNCTION_SDM_RX) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_SDM_TX) != OFF_GPIO) {
+#if defined(SUPLA_MODBUS_SDM)
 #ifdef ARDUINO_ARCH_ESP32
-    Supla::GUI::smd =
-        new Supla::Sensor::SDM630(ConfigESP->getHardwareSerial(ConfigESP->getGpio(FUNCTION_SDM_RX), ConfigESP->getGpio(FUNCTION_SDM_TX)),
-                                  ConfigESP->getGpio(FUNCTION_SDM_RX), ConfigESP->getGpio(FUNCTION_SDM_TX));
+    Supla::GUI::smd = new Supla::Sensor::SDM630(
+        ConfigESP->getHardwareSerial(ConfigESP->getGpio(FUNCTION_SDM_RX), ConfigESP->getGpio(FUNCTION_SDM_TX)), ConfigESP->getGpio(FUNCTION_SDM_RX),
+        ConfigESP->getGpio(FUNCTION_SDM_TX), ConfigESP->getBaudRateSpeed(ConfigESP->getGpio(FUNCTION_SDM_RX)));
 #else
-    Supla::GUI::smd = new Supla::Sensor::SDM630(ConfigESP->getGpio(FUNCTION_SDM_RX), ConfigESP->getGpio(FUNCTION_SDM_TX));
+    Supla::GUI::smd = new Supla::Sensor::SDM630(ConfigESP->getGpio(FUNCTION_SDM_RX), ConfigESP->getGpio(FUNCTION_SDM_TX),
+                                                ConfigESP->getBaudRateSpeed(ConfigESP->getGpio(FUNCTION_SDM_RX)));
 
 #endif
-    Supla::GUI::smd->setRefreshRate(60);
+    if (ConfigESP->getBaudRate(ConfigESP->getGpio(FUNCTION_SDM_RX)) == BAUDRATE_38400) {
+      Supla::GUI::smd->setRefreshRate(30);
+    }
+    else {
+      Supla::GUI::smd->setRefreshRate(60);
+    }
+#endif
+
+#if defined(SUPLA_MODBUS_SDM_ONE_PHASE)
+#ifdef ARDUINO_ARCH_ESP32
+    Supla::GUI::smd120 = new Supla::Sensor::SDM120(
+        ConfigESP->getHardwareSerial(ConfigESP->getGpio(FUNCTION_SDM_RX), ConfigESP->getGpio(FUNCTION_SDM_TX)), ConfigESP->getGpio(FUNCTION_SDM_RX),
+        ConfigESP->getGpio(FUNCTION_SDM_TX), ConfigESP->getBaudRateSpeed(ConfigESP->getGpio(FUNCTION_SDM_RX)));
+#else
+    Supla::GUI::smd120 = new Supla::Sensor::SDM120(ConfigESP->getGpio(FUNCTION_SDM_RX), ConfigESP->getGpio(FUNCTION_SDM_TX),
+                                                   ConfigESP->getBaudRateSpeed(ConfigESP->getGpio(FUNCTION_SDM_RX)));
+
+#endif
+    if (ConfigESP->getBaudRate(ConfigESP->getGpio(FUNCTION_SDM_RX)) == BAUDRATE_38400) {
+      Supla::GUI::smd120->setRefreshRate(10);
+    }
+    else {
+      Supla::GUI::smd120->setRefreshRate(60);
+    }
+
+#endif
+    improvSerialComponent->disable();
   }
 #endif
 
 #if defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_I2C_ENERGY_METER)
   if (ConfigESP->getGpio(FUNCTION_SDA) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_SCL) != OFF_GPIO) {
     bool force400khz = false;
-
-    Wire.begin(ConfigESP->getGpio(FUNCTION_SDA), ConfigESP->getGpio(FUNCTION_SCL));
 
 #ifdef SUPLA_BME280
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_BME280).toInt()) {
@@ -434,23 +583,25 @@ void setup() {
         case BMx280_ADDRESS_0X76:
           bme280 = new Supla::Sensor::BME280(0x76, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
 
-          Supla::GUI::addConditionsTurnON(SENSOR_BME280, bme280);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BME280, bme280);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BME280, S_BME280, bme280);
+#endif
           break;
         case BMx280_ADDRESS_0X77:
           bme280 = new Supla::Sensor::BME280(0x77, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
 
-          Supla::GUI::addConditionsTurnON(SENSOR_BME280, bme280);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BME280, bme280);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BME280, S_BME280, bme280);
+#endif
           break;
         case BMx280_ADDRESS_0X76_AND_0X77:
           bme280 = new Supla::Sensor::BME280(0x76, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
           Supla::Sensor::BME280 *bme280_1 = new Supla::Sensor::BME280(0x77, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
 
-          Supla::GUI::addConditionsTurnON(SENSOR_BME280, bme280);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BME280, bme280);
-          Supla::GUI::addConditionsTurnON(SENSOR_BME280, bme280_1, 1);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BME280, bme280_1, 1);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BME280, S_BME280, bme280);
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BME280, S_BME280, bme280_1, 1);
+#endif
           break;
       }
     }
@@ -464,23 +615,25 @@ void setup() {
         case BMx280_ADDRESS_0X76:
           bmp280 = new Supla::Sensor::BMP280(0x76, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
 
-          Supla::GUI::addConditionsTurnON(SENSOR_BMP280, bmp280);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BMP280, bmp280);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BMP280, S_BMP280, bmp280);
+#endif
           break;
         case BMx280_ADDRESS_0X77:
           bmp280 = new Supla::Sensor::BMP280(0x77, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
 
-          Supla::GUI::addConditionsTurnON(SENSOR_BMP280, bmp280);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BMP280, bmp280);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BMP280, S_BMP280, bmp280);
+#endif
           break;
         case BMx280_ADDRESS_0X76_AND_0X77:
           bmp280 = new Supla::Sensor::BMP280(0x76, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
           Supla::Sensor::BMP280 *bmp280_1 = new Supla::Sensor::BMP280(0x77, ConfigManager->get(KEY_ALTITUDE_BMX280)->getValueInt());
 
-          Supla::GUI::addConditionsTurnON(SENSOR_BMP280, bmp280);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BMP280, bmp280);
-          Supla::GUI::addConditionsTurnON(SENSOR_BMP280, bmp280_1, 1);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_BMP280, bmp280_1, 1);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BMP280, S_BMP280, bmp280);
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_BMP280, S_BMP280, bmp280_1, 1);
+#endif
           break;
       }
     }
@@ -489,29 +642,31 @@ void setup() {
 #ifdef SUPLA_SHT3x
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_SHT3x).toInt()) {
       Supla::Sensor::SHT3x *sht3x = nullptr;
+      Supla::Sensor::SHT3x *sht3x_1 = nullptr;
 
       switch (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_SHT3x).toInt()) {
         case SHT3x_ADDRESS_0X44:
           sht3x = new Supla::Sensor::SHT3x(0x44);
-
-          Supla::GUI::addConditionsTurnON(SENSOR_SHT3x, sht3x);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_SHT3x, sht3x);
           break;
         case SHT3x_ADDRESS_0X45:
-          sht3x = new Supla::Sensor::SHT3x(0x45);
-
-          Supla::GUI::addConditionsTurnON(SENSOR_SHT3x, sht3x);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_SHT3x, sht3x);
+          sht3x_1 = new Supla::Sensor::SHT3x(0x45);
           break;
         case SHT3x_ADDRESS_0X44_AND_0X45:
           sht3x = new Supla::Sensor::SHT3x(0x44);
-          Supla::Sensor::SHT3x *sht3x_1 = new Supla::Sensor::SHT3x(0x45);
-
-          Supla::GUI::addConditionsTurnON(SENSOR_SHT3x, sht3x);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_SHT3x, sht3x);
-          Supla::GUI::addConditionsTurnON(SENSOR_SHT3x, sht3x_1, 1);
-          Supla::GUI::addConditionsTurnOFF(SENSOR_SHT3x, sht3x_1, 1);
+          sht3x_1 = new Supla::Sensor::SHT3x(0x45);
           break;
+      }
+
+      if (sht3x) {
+#ifdef SUPLA_CONDITIONS
+        Supla::GUI::Conditions::addConditionsSensor(SENSOR_SHT3x, S_SHT3X, sht3x);
+#endif
+      }
+
+      if (sht3x_1) {
+#ifdef SUPLA_CONDITIONS
+        Supla::GUI::Conditions::addConditionsSensor(SENSOR_SHT3x, S_SHT3X, sht3x_1, 1);
+#endif
       }
     }
 #endif
@@ -520,16 +675,19 @@ void setup() {
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_SHT3x).toInt()) {
       Supla::Sensor::SHTAutoDetect *shtAutoDetect = new Supla::Sensor::SHTAutoDetect();
 
-      Supla::GUI::addConditionsTurnON(SENSOR_SHT3x, shtAutoDetect);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_SHT3x, shtAutoDetect);
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_SHT3x, S_SHT3X, shtAutoDetect);
+#endif
     }
 #endif
 
 #ifdef SUPLA_SI7021
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_SI7021).toInt()) {
       auto si7021 = new Supla::Sensor::Si7021();
-      Supla::GUI::addConditionsTurnON(SENSOR_SI7021, si7021);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_SI7021, si7021);
+
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_SI7021, S_SI702, si7021);
+#endif
     }
 #endif
 
@@ -553,8 +711,9 @@ void setup() {
     if (vl53l0x) {
       force400khz = true;
 
-      Supla::GUI::addConditionsTurnON(SENSOR_VL53L0X, vl53l0x);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_VL53L0X, vl53l0x);
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_VL53L0X, S_VL53L0X, vl53l0x);
+#endif
     }
 #endif
 
@@ -563,23 +722,40 @@ void setup() {
       auto hdc1080 = new Supla::Sensor::HDC1080();
       force400khz = true;
 
-      Supla::GUI::addConditionsTurnON(SENSOR_HDC1080, hdc1080);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_HDC1080, hdc1080);
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_HDC1080, S_HDC1080, hdc1080);
+#endif
     }
 #endif
 
-#ifdef SUPLA_BH1750
+#ifdef SUPLA_BH1750_KPOP
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_BH1750).toInt()) {
-      auto bh1750 = new Supla::Sensor::BH1750();
+      auto bh1750 = new Supla::Sensor::BH_1750();
 
-      Supla::GUI::addConditionsTurnON(SENSOR_BH1750, bh1750);
-      Supla::GUI::addConditionsTurnOFF(SENSOR_BH1750, bh1750);
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_BH1750, S_BH1750, bh1750);
+#endif
     }
 #endif
 
-#ifdef SUPLA_MAX44009
+#ifdef SUPLA_MS5611
+    if (ConfigManager->get(KEY_ACTIVE_SENSOR_2)->getElement(SENSOR_I2C_MS5611).toInt()) {
+      auto ms5611 = new Supla::Sensor::MS5611Sensor(ConfigManager->get(KEY_ALTITUDE_MS5611)->getValueInt());
+      /*
+      #ifdef SUPLA_CONDITIONS
+            Supla::GUI::Conditions::addConditionsSensor(SENSOR_MS5611, S_MS5611, ms5611);
+      #endif
+      */
+    }
+#endif
+
+#ifdef SUPLA_MAX44009_KPOP
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_MAX44009).toInt()) {
-      new Supla::Sensor::MAX_44009();
+      auto max4409 = new Supla::Sensor::MAX_44009();
+
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_MAX44009, S_MAX44009, max4409);
+#endif
     }
 #endif
 
@@ -587,7 +763,11 @@ void setup() {
     if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_OLED).toInt()) {
       SuplaOled *oled = new SuplaOled();
 #ifdef SUPLA_BUTTON
-      oled->addButtonOled(ConfigESP->getGpio(FUNCTION_BUTTON));
+#ifdef SUPLA_THERMOSTAT
+      new Supla::Control::GUI::OledButtonController(oled, Supla::GUI::thermostatArray);
+#else
+      new Supla::Control::GUI::OledButtonController(oled);
+#endif
 #endif
     }
 #endif
@@ -659,77 +839,81 @@ void setup() {
     }
 #endif
 
-#ifdef SUPLA_PCF8574
-    if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_PCF857X).toInt()) {
-      new Supla::Control::PCF_8574();
-      force400khz = true;
-    }
-#endif
-
-#ifdef SUPLA_PCF8575
-    if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_PCF857X).toInt()) {
-      new Supla::Control::PCF_8575();
-      force400khz = true;
-    }
-#endif
-
-#ifdef SUPLA_MCP23017
-    if (ConfigManager->get(KEY_ACTIVE_SENSOR)->getElement(SENSOR_I2C_MCP23017).toInt()) {
-      Supla::Control::MCP_23017 *mcp = new Supla::Control::MCP_23017();
-
-      for (nr = 0; nr < ConfigManager->get(KEY_MAX_BUTTON)->getValueInt(); nr++) {
-        gpio = ConfigESP->getGpio(nr, FUNCTION_BUTTON);
-        if (gpio != OFF_GPIO)
-          mcp->setPullup(gpio, ConfigESP->getPullUp(gpio), false);
-      }
-
-      for (nr = 0; nr < ConfigManager->get(KEY_MAX_LIMIT_SWITCH)->getValueInt(); nr++) {
-        gpio = ConfigESP->getGpio(nr, FUNCTION_LIMIT_SWITCH);
-        if (gpio != OFF_GPIO)
-          mcp->setPullup(gpio, ConfigESP->getPullUp(gpio), true);
-      }
-
-      force400khz = true;
-    }
-#endif
     if (force400khz)
       Wire.setClock(400000);
   }
 #endif
 
-#ifdef SUPLA_ACTION_TRIGGER
-  for (nr = 0; nr < ConfigManager->get(KEY_MAX_BUTTON)->getValueInt(); nr++) {
-    Supla::GUI::addButtonActionTrigger(nr);
+#if defined(GUI_SENSOR_I2C_2)
+  if (ConfigESP->getGpio(FUNCTION_SDA) != OFF_GPIO && ConfigESP->getGpio(FUNCTION_SCL) != OFF_GPIO) {
+    bool force400khz = false;
+#ifdef SUPLA_AHTX0
+    if (ConfigManager->get(KEY_ACTIVE_SENSOR_2)->getElement(SENSOR_I2C_AHTX0).toInt()) {
+      Supla::Sensor::AHTX0 *aht = nullptr;
+      switch (ConfigManager->get(KEY_ACTIVE_SENSOR_2)->getElement(SENSOR_I2C_AHTX0).toInt()) {
+        case AHT_ADDRESS_0X38:
+          aht = new Supla::Sensor::AHTX0(AHTX0_I2CADDR_DEFAULT, 1);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_AHTX0, S_AHTX0, aht);
+#endif
+          break;
+        case AHT_ADDRESS_0X39:
+          aht = new Supla::Sensor::AHTX0(AHTX0_I2CADDR_ALTERNATE, 1);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_AHTX0, S_AHTX0, aht);
+#endif
+          break;
+        case AHT_ADDRESS_0X38_AND_0X39:
+          aht = new Supla::Sensor::AHTX0(AHTX0_I2CADDR_DEFAULT, 1);
+          Supla::Sensor::AHTX0 *aht1 = new Supla::Sensor::AHTX0(AHTX0_I2CADDR_ALTERNATE, 2);
+#ifdef SUPLA_CONDITIONS
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_AHTX0, S_AHTX0, aht);
+          Supla::GUI::Conditions::addConditionsSensor(SENSOR_AHTX0, S_AHTX0, aht1, 1);
+#endif
+      }
+#ifdef SUPLA_CONDITIONS
+      Supla::GUI::Conditions::addConditionsSensor(SENSOR_AHTX0, S_AHTX0, aht);
+#endif
+    }
+#endif
   }
 #endif
 
-#ifdef DEBUG_MODE
+#ifdef SUPLA_ACTION_TRIGGER
+  for (nr = 0; nr < Supla::GUI::calculateElementCountActionTrigger(); nr++) {
+    Supla::GUI::addButtonActionTrigger(nr);
+  }
+  delete Supla::GUI::actionTrigger;
+#endif
+
+#ifdef SUPLA_DEBUG_MODE
   new Supla::Sensor::EspFreeHeap();
 #endif
 
 #ifdef SUPLA_DEEP_SLEEP
   if (ConfigManager->get(KEY_DEEP_SLEEP_TIME)->getValueInt() > 0) {
-    new Supla::Control::DeepSleep(ConfigManager->get(KEY_DEEP_SLEEP_TIME)->getValueInt() * 60, 30);
+    new Supla::Control::DeepSleep(ConfigManager->get(KEY_DEEP_SLEEP_TIME)->getValueInt() * 60);
   }
+#endif
+
+#ifdef SUPLA_CONDITIONS
+  Supla::GUI::Conditions::addConditions();
 #endif
 
   Supla::GUI::begin();
-
-#if defined(GUI_SENSOR_1WIRE) || defined(GUI_SENSOR_I2C) || defined(GUI_SENSOR_SPI)
-  Supla::GUI::addCorrectionSensor();
-#endif
-
-#ifdef ARDUINO_ARCH_ESP8266
-  // https://github.com/esp8266/Arduino/issues/2070#issuecomment-258660760
-  wifi_set_sleep_type(NONE_SLEEP_T);
-#endif
-
-  if (!ConfigESP->checkBusyGpio(3)) {  // GPIO_RX
-    new ImprovSerialComponent();
-  }
 }
 
 void loop() {
+  const uint32_t now = millis();
   SuplaDevice.iterate();
-  // delay(25);
+
+#ifndef SUPLA_CC1101
+  uint32_t delay_time = LOOP_INTERVAL;
+  if (now - last_loop < LOOP_INTERVAL)
+    delay_time = LOOP_INTERVAL - (now - last_loop);
+
+  delay(delay_time);
+
+  last_loop = now;
+#endif
 }

@@ -25,6 +25,7 @@
 #define S_UPDATE                  "Update"
 #define S_RESTART                 "Restart"
 #define S_RETURN                  "Return"
+#define S_CONDITION               "Condition"
 
 #define S_TEMPLATE_BOARD                                       "Template board"
 #define S_TYPE                                                 "Type"
@@ -34,7 +35,7 @@
 #define S_SENSORS_I2C                                          "SENSORS i2c"
 #define S_SENSORS_SPI                                          "SENSORS SPI"
 #define S_SENSORS_OTHER                                        "SENSORS OTHER"
-#define S_LED_BUTTON_CFG                                       "LED, BUTTON CONFIG"
+#define S_CONFIGURATION                                       "LED, BUTTON CONFIG"
 #define S_CFG_MODE                                             "CFG mode"
 #define S_QUANTITY                                             "QUANTITY"
 #define S_GPIO_SETTINGS_FOR_RELAYS                             "GPIO settings for relays"
@@ -42,10 +43,11 @@
 #define S_RELAY_NR_SETTINGS                                    "Settings relay nr. "
 #define S_STATE_CONTROL                                        "State control"
 #define S_REACTION_AFTER_RESET                                 "Reaction after reset"
+#define S_LIGHT_RELAY                                          "Sterowowanie światłem"
 #define S_GPIO_SETTINGS_FOR_BUTTONS                            "GPIO settings for buttons"
 #define S_BUTTON                                               "Button"
 #define S_BUTTON_NR_SETTINGS                                   "Setting button nr. "
-#define S_REACTION_TO                                          "Reaction to"
+#define S_REACTION                                             "Reaction"
 #define S_RELAY_CONTROL                                        "Relay control"
 #define S_ACTION                                               "Action"
 #define S_GPIO_SETTINGS_FOR_LIMIT_SWITCH                       "GPIO settings for limit switch"
@@ -95,25 +97,39 @@
 #define S_STATUS_NETWORK_DISCONNECTED    "No connection to network"
 
 //#### SuplaCommonPROGMEM.h ####
-#define S_OFF                           "OFF"
-#define S_ON                            "ON"
-#define S_TOGGLE                        "TOGGLE"
-#define S_LOW                           "LOW"
-#define S_HIGH                          "HIGH"
-#define S_POSITION_MEMORY               "POSITION MEMORY"
-#define S_REACTION_ON_PRESS             "ON PRESS"
-#define S_REACTION_ON_RELEASE           "ON RELEASE"
-#define S_REACTION_ON_CHANGE            "ON CHANGE"
-#define S_REACTION_ON_HOLD              "ON HOLD"
-#define S_CFG_10_PRESSES                "10 ON PRESSES"
-#define S_5SEK_HOLD                     "5 SEC HOLD"
-#define S_NORMAL                        "NORMAL"
-#define S_SLOW                          "SLOW"
-#define S_MANUALLY                      "MANUALLY"
-#define S_ON_CH_VAL_OFF_HEATING         "ON > channel value > OFF - heating"
-#define S_ON_CH_VAL_OFF_COOLING         "ON < channel value < OFF - cooling"
-#define S_ON_2CH_VAL_OFF_HUMIDIFICATION "ON > 2nd channel value > OFF - humidification"
-#define S_ON_2CH_VAL_OFF_DRYING         "ON < 2nd channel value < OFF - drying"
+#define S_OFF                          "OFF"
+#define S_ON                           "ON"
+#define S_TOGGLE                       "TOGGLE"
+#define S_LOW                          "LOW"
+#define S_HIGH                         "HIGH"
+#define S_POSITION_MEMORY              "POSITION MEMORY"
+#define S_REACTION_ON_PRESS            "ON PRESS"
+#define S_REACTION_ON_RELEASE          "ON RELEASE"
+#define S_REACTION_ON_CHANGE           "ON CHANGE"
+#define S_REACTION_ON_HOLD             "ON HOLD"
+#define S_REACTION_MOTION_SENSOR       "MOTION SENSOR"
+#define S_REACTION_AUTOMATIC_STAIRCASE "AUTOMATIC STAIRCASE"
+#define S_CFG_10_PRESSES               "10 ON PRESSES"
+#define S_5SEK_HOLD                    "5 SEC HOLD"
+#define S_NORMAL                       "NORMAL"
+#define S_SLOW                         "SLOW"
+#define S_MANUALLY                     "MANUALLY"
+
+#ifdef SUPLA_CONDITIONS
+#define S_CONDITIONING     "Conditioning"
+#define S_TURN_ON_WHEN     "ON if value"
+#define S_SWITCH_ON_VALUE  "Switch on value"
+#define S_SWITCH_OFF_VALUE "Off value"
+
+#define S_ON_LESS    "smaller"
+#define S_ON_GREATER "bigger"
+
+#define S_CHANNEL_VALUE "channel"
+#define S_HUMIDITY      "humidity"
+#define S_VOLTAGE       "voltage[V]"
+#define S_CURRENT       "current[A]"
+#define S_POWER         "active power[W]"
+#endif
 
 //#### SuplaWebServer.cpp ####
 #define S_LIMIT_SWITCHES "LIMIT SWITCHES"
@@ -160,11 +176,7 @@
 #define S_STATE                   "State"
 #define S_MESSAGE                 "Message"
 #define S_DIRECT_LINKS            "Direct links"
-#define S_CONDITIONING            "Conditioning"
 #define S_SENSOR                  "Sensor"
-#define S_CONDITION               "Condition"
-#define S_SWITCH_ON_VALUE         "switch-on value"
-#define S_SWITCH_OFF_VALUE        "switch-off value"
 #define S_SETTINGS_FOR_RELAYS     "Settings for relays"
 
 //#### SuplaHTTPUpdateServer.cpp ####
@@ -201,6 +213,28 @@
 
 #ifdef SUPLA_PUSHOVER
 #define S_SOUND "Sound"
+#endif
+
+#define S_BAUDRATE "Baudrate"
+
+#ifdef SUPLA_THERMOSTAT
+#define S_HEAT                     "Heat"
+#define S_COOL                     "Cool"
+#define S_AUTO                     "Auto"
+#define S_DOMESTIC_HOT_WATER       "Domestic hot water"
+#define S_DIFFERENTIAL             "Differential"
+#define S_THERMOSTAT               "Thermostat"
+#define S_MAIN_THERMOMETER_CHANNEL "Main thermometrer"
+#define S_AUX_THERMOMETER_CHANNEL  "Aux thermometrer"
+#define S_HISTERESIS               "Histeresis"
+#endif
+
+#ifdef SUPLA_CC1101
+#define S_WMBUS_METER "Meter"
+#define S_WMBUS_SENSOR_TYPE "Sensor type"
+#define S_WMBUS_SENSOR_ID "Sensor id"
+#define S_WMBUS_SENSOR_KEY "Sensor key"
+#define S_WMBUS_SENSOR_PROP "Sensor property"
 #endif
 
 #endif  // _LANGUAGE_EN_S_H_

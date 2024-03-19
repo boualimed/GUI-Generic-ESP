@@ -13,24 +13,60 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
+#ifdef SUPLA_DEEP_SLEEP
 #include "deepSleep.h"
 #include "../../SuplaDeviceGUI.h"
 
 namespace Supla {
 namespace Control {
 
-DeepSleep::DeepSleep(unsigned _supla_int_t sleepTimeSec, unsigned _supla_int_t iterateTimeSec)
-    : sleepTimeSec(sleepTimeSec), iterateTimeSec(iterateTimeSec), lastReadTime(0) {
+DeepSleep::DeepSleep(unsigned _supla_int_t sleepTimeSec) : sleepTimeSec(sleepTimeSec), lastUpdateCheckTime(0) {
+ // SuplaDevice.setShowUptimeInChannelState(false);
 }
 
 void DeepSleep::iterateAlways() {
-  if (millis() - lastReadTime > 5000 && ConfigESP->configModeESP == Supla::DEVICE_MODE_NORMAL &&
-      !Supla::Protocol::ProtocolLayer::IsAnyUpdatePending()) {
-    Serial.println(F("ESP to Sleep mode"));
-    lastReadTime = millis();
+  static bool updateFound = false;
+  static bool shouldEnterDeepSleep = false;
+  unsigned long currentTime = millis();
 
-    ESP.deepSleep(sleepTimeSec * 1000000);
-    delay(100);
+  if (ConfigESP->configModeESP == Supla::DEVICE_MODE_NORMAL) {
+    if (WiFi.status() == WL_CONNECTED && lastUpdateCheckTime == 0) {
+      lastUpdateCheckTime = currentTime;
+    }
+    else {
+      if (Supla::Protocol::ProtocolLayer::IsAnyUpdatePending()) {
+        updateFound = true;
+      }
+
+      if (currentTime - lastUpdateCheckTime > 20000 || (updateFound && currentTime - lastUpdateCheckTime > 10000)) {
+        if (!updateFound) {
+          Serial.println(F("ESP deep sleep - timeout"));
+        }
+        shouldEnterDeepSleep = true;
+      }
+    }
+
+    if (WiFi.status() != WL_CONNECTED && currentTime - lastUpdateCheckTime > 60000) {
+      Serial.println(F("Failed to establish WiFi connection. Sleeping for 60 seconds..."));
+      shouldEnterDeepSleep = true;
+    }
+
+    if (shouldEnterDeepSleep) {
+      Serial.println(F("Preparing for ESP deep sleep"));
+
+      WiFi.disconnect(true);
+      delay(200);
+
+      Serial.println(F("Putting ESP into deep sleep"));
+
+#ifdef ESP8266
+      ESP.deepSleep(sleepTimeSec * 1000000);
+#elif defined(ESP32)
+      esp_sleep_enable_timer_wakeup(sleepTimeSec * 1000000);
+      esp_deep_sleep_start();
+#endif
+      lastUpdateCheckTime = currentTime;
+    }
   }
 }
 
@@ -53,3 +89,4 @@ void DeepSleep::onInit() {
 
 }  // namespace Control
 }  // namespace Supla
+#endif

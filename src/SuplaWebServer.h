@@ -22,16 +22,13 @@
 #include "SuplaTemplateBoard.h"
 
 #ifdef ARDUINO_ARCH_ESP8266
-#ifdef SUPLA_OTA
-#include "SuplaHTTPUpdateServer.h"
-#endif
 #include <ESP8266WebServer.h>
-
 #elif ARDUINO_ARCH_ESP32
-#ifdef SUPLA_OTA
-#include "SuplaHTTPUpdateServerESP32.h"
-#endif
 #include <supla/ESP32WebServer/ESP32WebServer.h>
+#endif
+
+#ifdef SUPLA_OTA
+#include "src/update/SuplaHTTPUpdateServer.h"
 #endif
 
 #include <supla/element.h>
@@ -39,38 +36,32 @@
 #define ARG_PARM_URL    "url"
 #define ARG_PARM_NUMBER "number"
 
-#define PATH_START     "/"
-#define PATH_RESET_ESP "?reboot=1"
+#define PATH_START "/"
 
 #ifdef GUI_SENSOR_I2C_EXPENDER
 #define INPUT_ADRESS_MCP23017 "iam"
 #define INPUT_EXPENDER_TYPE   "uet"
 #endif
 
-extern String webContentBuffer;
-
 class SuplaWebServer : public Supla::Element {
  public:
   SuplaWebServer();
   void begin();
   void sendHeaderStart();
-  void sendHeader();
+  void sendContent(const String& content);
+  void sendContentBuffer();
+  void sendContent(double content);
+  void sendContent(int content);
   void sendHeaderEnd();
-
-  void sendContent();
 
 #ifdef ARDUINO_ARCH_ESP8266
   ESP8266WebServer* httpServer;
-
-#ifdef SUPLA_OTA
-  ESP8266HTTPUpdateServer* httpUpdater;
-#endif
 #elif ARDUINO_ARCH_ESP32
   ESP32WebServer* httpServer;
+#endif
 
 #ifdef SUPLA_OTA
-  ESP32HTTPUpdateServer* httpUpdater;
-#endif
+  HTTPUpdateServer* httpUpdater;
 #endif
 
   bool isLoggedIn(bool force = false);
@@ -84,6 +75,14 @@ class SuplaWebServer : public Supla::Element {
   void createWebServer();
   void handleNotFound();
 
+#ifdef ARDUINO_ARCH_ESP8266
+  static const int MAX_BUFFER_SIZE = 32;
+#elif ARDUINO_ARCH_ESP32
+  static const int MAX_BUFFER_SIZE = 265;
+#endif
+
+  char contentBuffer[MAX_BUFFER_SIZE];
+  size_t bufferIndex = 0;
   bool chunkedSendHeader = false;
   bool isRunningWebServer = false;
 };

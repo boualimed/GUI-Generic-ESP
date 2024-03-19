@@ -19,26 +19,26 @@
 #ifndef SRC_SUPLA_SENSOR_VIRTUAL_BINARY_H_
 #define SRC_SUPLA_SENSOR_VIRTUAL_BINARY_H_
 
+#include <supla/sensor/binary_base.h>
+
 #include "../action_handler.h"
 #include "../actions.h"
-#include "../channel_element.h"
 
 namespace Supla {
 namespace Sensor {
-class VirtualBinary : public ChannelElement, public ActionHandler {
+class VirtualBinary : public BinaryBase, public ActionHandler {
  public:
   VirtualBinary();
-  virtual bool getValue();
-  void iterateAlways();
-  void onInit();
-  void handleAction(int event, int action);
+  bool getValue() override;
+  void onInit() override;
+  void handleAction(int event, int action) override;
+
   void set();
   void clear();
   void toggle();
 
  protected:
-  bool state;
-  uint64_t lastReadTime;
+  bool state = false;
 };
 
 };  // namespace Sensor

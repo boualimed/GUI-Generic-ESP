@@ -16,7 +16,7 @@
 #define DEFAULT_TEMPLATE_BOARD BOARD_SHELLY2
 #endif
 
-// #define DEBUG_MODE
+// #define SUPLA_DEBUG_MODE
 // #define SUPLA_OTA
 // #define SUPLA_MDNS
 // #define SUPLA_ENABLE_GUI
@@ -53,10 +53,12 @@
 // #define SUPLA_VL53L0X
 // #define SUPLA_HDC1080
 // #define SUPLA_LCD_HD44780
-
+// #define SUPLA_MS5611
+// #define SUPLA_AHTX0
 // ##### SPI #####
 // #define SUPLA_MAX6675
 // #define SUPLA_MAX31855
+// #define SUPLA_CC1101
 
 // ##### Other #####
 // #define SUPLA_HC_SR04
@@ -72,13 +74,12 @@
 // #define SUPLA_RF_BRIDGE
 // #define SUPLA_ADE7953
 
-// #define SUPLA_PMSX003 
-// #define SUPLA_VINDRIKTNING_IKEA
+// #define SUPLA_PMSX003_KPOP 
+// #define SUPLA_VINDRIKTNING_IKEA_KPOP
 
 // ##### Analog #####
 // #define SUPLA_NTC_10K
 // #define SUPLA_MPX_5XXX
-// #define SUPLA_ANALOG_READING_MAP
 
 #endif  // USE_CUSTOM
 #endif  // GUI-Generic_Config_h
